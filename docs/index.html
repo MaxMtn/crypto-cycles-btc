@@ -373,7 +373,6 @@
 <p class="sous-titre" id="sous-titre"></p>
 
 <div class="avertissement">
-  <strong>Ce que montre cette page</strong>
   <span id="texte-presentation"></span>
 
   <span class="limites">
@@ -665,15 +664,13 @@ function dessinerEnTete() {
   // Présentation rédigée ici plutôt qu'écrite en dur dans la page : elle cite
   // le jour de cycle du moment, ce qui rend l'explication concrète.
   document.getElementById("texte-presentation").innerHTML = `
-    <p>Cette page situe le cycle de marché en cours face aux cycles passés.
+    <p>Crypto Cockpit situe le cycle de marché en cours face aux cycles passés.
     Tous sont alignés sur les <strong>halvings du Bitcoin</strong> — l'événement
     qui divise par deux la création de nouvelles pièces, environ tous les quatre
     ans. On compare ainsi des moments équivalents : le jour ${jourActuel}
     d'aujourd'hui face au jour ${jourActuel} des cycles précédents.</p>
     <p>Pour chaque indicateur, vous lisez la valeur du jour, celle qu'avaient les
-    cycles précédents au même stade, et l'écart entre les deux. Le but n'est pas
-    de deviner la suite, mais de voir où l'on se situe par rapport à ce qui
-    s'est déjà produit.</p>
+    cycles précédents au même stade, et l'écart entre les deux.</p>
   `;
 }
 
