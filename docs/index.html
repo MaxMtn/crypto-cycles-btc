@@ -1700,7 +1700,7 @@ function dessinerFenetreCreux() {
 
   const conf = METHODES_REPERE[methodeChoisie];
   document.getElementById("repere-theorique").innerHTML = `
-    <span class="etiquette">Repère théorique — pas une prévision</span>
+    <span class="etiquette">Repère théorique pour ce cycle</span>
     <p class="chiffre">${dateDuJour(numeroActuel, median)}</p>
     <p class="detail">jour ${median} du cycle · ${quand(median)}</p>
     <p class="methode"><strong>${conf.titre}</strong> — ${conf.explication}
