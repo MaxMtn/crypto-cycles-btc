@@ -112,6 +112,24 @@
     cursor: pointer;
   }
 
+  /* Définition de la métrique sélectionnée, juste sous les boutons. */
+  .definition {
+    border-left: 3px solid var(--actuel);
+    background: var(--fond-bloc);
+    border-radius: 0 8px 8px 0;
+    padding: 11px 15px;
+    margin: 0 0 16px;
+    font-size: 0.9rem;
+  }
+  .definition .nom { font-weight: 600; }
+  .definition .formule {
+    display: block;
+    color: var(--texte-doux);
+    font-size: 0.85rem;
+    margin-top: 1px;
+  }
+  .definition p { margin: 7px 0 0; }
+
   .cadre-graphique {
     border: 1px solid var(--bordure);
     border-radius: 10px;
@@ -188,6 +206,8 @@
   </div>
 </div>
 
+<div class="definition" id="definition"></div>
+
 <div class="cadre-graphique">
   <svg id="graphique" viewBox="0 0 900 460" role="img" aria-label="Comparaison des cycles Bitcoin"></svg>
 </div>
@@ -221,21 +241,24 @@ const METRIQUES = {
     index: 1,
     titre: "MVRV",
     axe: "MVRV (capitalisation de marché / capitalisation réalisée)",
-    explication: "Compare la valeur de marché au prix moyen d'acquisition réel des bitcoins. Au-dessus de 1, le marché est en plus-value latente ; en dessous, en moins-value.",
+    formule: "= ce que valent tous les bitcoins aujourd'hui ÷ ce qu'ils valaient lors de leur dernier mouvement",
+    explication: "Indique si les détenteurs de bitcoins sont globalement en gain ou en perte. Au-dessus de 1, l'ensemble du marché est en gain latent ; en dessous de 1, en perte. Plus le chiffre est élevé, plus le marché s'est éloigné du prix réellement payé.",
     format: v => v.toFixed(2),
   },
   mayer_multiple: {
     index: 2,
     titre: "Mayer Multiple",
     axe: "Mayer Multiple (prix / moyenne 200 jours)",
-    explication: "Écart du prix à sa moyenne sur 200 jours. Au-dessus de 1, le prix est au-dessus de sa tendance longue ; en dessous, sous sa tendance.",
+    formule: "= prix du jour ÷ moyenne des 200 derniers jours",
+    explication: "Situe le prix par rapport à sa tendance de fond. Au-dessus de 1, le prix est plus haut que sa moyenne de long terme ; en dessous de 1, plus bas. Une valeur de 1,5 signifie un prix 50 % au-dessus de cette moyenne.",
     format: v => v.toFixed(2),
   },
   drawdown_pct: {
     index: 3,
     titre: "Drawdown",
     axe: "Drawdown depuis le plus haut historique (%)",
-    explication: "Écart au plus haut jamais atteint jusqu'à cette date. 0 % signifie un nouveau record.",
+    formule: "= écart entre le prix du jour et le plus haut atteint jusque-là",
+    explication: "Mesure la baisse depuis le record précédent. 0 % signifie que le prix est sur un nouveau record ; −50 % qu'il a été divisé par deux depuis son plus haut.",
     format: v => v.toFixed(1) + " %",
   },
 };
@@ -501,6 +524,16 @@ function dessinerGraphique() {
   };
 }
 
+// --- Définition de la métrique sélectionnée --------------------------------
+function dessinerDefinition() {
+  const conf = METRIQUES[metriqueChoisie];
+  document.getElementById("definition").innerHTML = `
+    <span class="nom">${conf.titre}</span>
+    <span class="formule">${conf.formule}</span>
+    <p>${conf.explication}</p>
+  `;
+}
+
 // --- Légende, reconstruite selon les cycles affichés ------------------------
 function dessinerLegende() {
   const morceaux = [
@@ -614,8 +647,9 @@ function dessinerLecture() {
       ${situation} au même stade (${etendue}).`;
   }
 
+  // La définition de la métrique n'est pas répétée ici : elle est affichée
+  // juste sous les boutons de sélection, en haut de page.
   bloc.innerHTML = `
-    <p><strong>${conf.titre}</strong> — ${conf.explication}</p>
     <p>${phrase}</p>
     <p style="color: var(--texte-doux)">Une « fourchette » construite sur si peu de
     cycles ne décrit que quelques trajectoires passées : elle ne délimite pas ce qui est
@@ -651,6 +685,7 @@ function dessinerTout() {
   [...bascules.querySelectorAll(".bascule")].forEach(b => {
     b.setAttribute("aria-pressed", cyclesAffiches.has(Number(b.dataset.cycle)));
   });
+  dessinerDefinition();
   dessinerGraphique();
   dessinerLegende();
   dessinerTableau();
