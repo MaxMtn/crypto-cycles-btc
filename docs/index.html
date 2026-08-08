@@ -727,7 +727,12 @@ function dessinerCreux() {
   const creuxActuel = creuxDuCycle(numeroActuel);
   const jourCreuxActuel = creuxActuel[0];
 
-  const lignes = [`<tr><th>Cycle</th><th>Jour du creux</th><th>Date</th><th>Profondeur</th><th>Écart avec le creux du cycle en cours</th></tr>`];
+  // Le repère (jour 801, et non aujourd'hui) est rappelé dans l'en-tête :
+  // sans lui, « dans 88 jours » se lirait comme « 88 jours à partir
+  // d'aujourd'hui », ce qui désignerait un autre moment.
+  const lignes = [`<tr><th>Cycle</th><th>Jour du creux</th><th>Date</th><th>Profondeur</th><th>Écart avec le creux du cycle en cours (jour ${jourCreuxActuel})</th></tr>`];
+
+  const enJours = nombre => `${nombre} jour${nombre > 1 ? "s" : ""}`;
 
   [...cyclesSelectionnes(), numeroActuel].forEach(n => {
     const creux = creuxDuCycle(n);
@@ -738,9 +743,9 @@ function dessinerCreux() {
       ecart = "— (référence, provisoire)";
     } else {
       const difference = creux[0] - jourCreuxActuel;
-      ecart = difference === 0
-        ? "même jour de cycle"
-        : `${Math.abs(difference)} j plus ${difference > 0 ? "tard" : "tôt"}`;
+      if (difference === 0) ecart = "même jour de cycle";
+      else if (difference > 0) ecart = `dans ${enJours(difference)}`;
+      else ecart = `il y a ${enJours(-difference)}`;
     }
 
     const couleur = n === numeroActuel ? "var(--actuel)" : couleurCycle(n);
@@ -764,6 +769,10 @@ function dessinerCreux() {
     observé à ce jour, pas un plancher acquis. Tant que le cycle n'est pas
     terminé, un point plus bas peut le déplacer — d'autant qu'il est récent.
     Les creux des cycles précédents sont, eux, définitifs.
+    Les écarts du tableau sont comptés <strong>depuis ce creux (jour
+    ${jourCreuxActuel})</strong>, et non depuis aujourd'hui (jour
+    ${jourActuel}) : « dans N jours » désigne le jour ${jourCreuxActuel} + N
+    du cycle.
     Le creux est ici le jour du drawdown le plus profond, et non celui du prix
     le plus bas : un cycle débute juste après un halving, quand le prix sort à
     peine du marché baissier précédent, si bien que le « prix le plus bas »
