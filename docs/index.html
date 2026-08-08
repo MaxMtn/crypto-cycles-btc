@@ -74,7 +74,7 @@
     align-items: baseline;
     flex-wrap: wrap;
     gap: 4px 10px;
-    margin: 10px 0 16px;
+    margin: 32px 0 0;
     padding: 9px 13px;
     border-radius: 8px;
     border: 1px solid var(--bordure);
@@ -91,15 +91,31 @@
 
   /* Le rappel d'incertitude reste visible en permanence : c'est une règle
      du projet, pas une décoration. */
+  /* L'encadré s'ouvre sur une explication neutre, puis isole les limites sur
+     fond d'alerte : sans cette séparation, le ton d'avertissement s'appliquerait
+     aussi à la présentation et perdrait de sa force. */
   .avertissement {
-    background: var(--alerte-fond);
-    border: 1px solid var(--alerte-bordure);
-    border-radius: 8px;
-    padding: 12px 14px;
+    background: var(--fond-bloc);
+    border: 1px solid var(--bordure);
+    border-radius: 10px;
+    padding: 14px 16px;
     font-size: 0.88rem;
     margin-bottom: 22px;
   }
-  .avertissement strong { display: block; margin-bottom: 4px; }
+  /* Seuls les titres de section passent en bloc. Viser « strong » sans
+     distinction couperait aussi les mots mis en gras au fil d'une phrase. */
+  .avertissement > strong,
+  .avertissement .limites > strong { display: block; margin-bottom: 4px; }
+  .avertissement p { margin: 0 0 8px; }
+  .avertissement p:last-child { margin-bottom: 0; }
+  .avertissement .limites {
+    display: block;
+    margin-top: 14px;
+    padding: 11px 13px;
+    background: var(--alerte-fond);
+    border: 1px solid var(--alerte-bordure);
+    border-radius: 8px;
+  }
   .avertissement .selection { display: block; margin-top: 8px; font-weight: 600; }
 
   .barre-reglages { display: flex; flex-wrap: wrap; gap: 22px; margin-bottom: 16px; }
@@ -354,14 +370,17 @@
   </div>
 </header>
 
-<div class="fraicheur" id="fraicheur"></div>
-
 <p class="sous-titre" id="sous-titre"></p>
 
 <div class="avertissement">
-  <strong>À lire avant d'interpréter quoi que ce soit</strong>
-  <span id="texte-avertissement"></span>
-  <span class="selection" id="avertissement-selection"></span>
+  <strong>Ce que montre cette page</strong>
+  <span id="texte-presentation"></span>
+
+  <span class="limites">
+    <strong>À garder en tête avant d'interpréter</strong>
+    <span id="texte-avertissement"></span>
+    <span class="selection" id="avertissement-selection"></span>
+  </span>
 </div>
 
 <div class="barre-reglages">
@@ -421,6 +440,8 @@
 
 <div class="lecture" id="fenetre-creux"></div>
 </div>
+
+<div class="fraicheur" id="fraicheur"></div>
 
 <footer>
   <p>Données : Coin Metrics Community API (licence Creative Commons BY-NC 4.0,
@@ -635,9 +656,25 @@ function dessinerFraicheur() {
 // Dépendent de l'actif : le nombre de cycles de référence et donc le texte
 // d'avertissement ne sont pas les mêmes pour Bitcoin et pour Ethereum.
 function dessinerEnTete() {
+  const dateDonnees = DONNEES.dernier_jour_donnees || ACTIF.position.generated_date;
   document.getElementById("sous-titre").textContent =
-    `${ACTIF.nom} — jour ${jourActuel} après le halving de 2024.`;
+    `${ACTIF.nom} — ${formaterDateFr(dateDonnees)} — `
+    + `Jour ${jourActuel} après le dernier halving de 2024.`;
   document.getElementById("texte-avertissement").textContent = ACTIF.position.caveat;
+
+  // Présentation rédigée ici plutôt qu'écrite en dur dans la page : elle cite
+  // le jour de cycle du moment, ce qui rend l'explication concrète.
+  document.getElementById("texte-presentation").innerHTML = `
+    <p>Cette page situe le cycle de marché en cours face aux cycles passés.
+    Tous sont alignés sur les <strong>halvings du Bitcoin</strong> — l'événement
+    qui divise par deux la création de nouvelles pièces, environ tous les quatre
+    ans. On compare ainsi des moments équivalents : le jour ${jourActuel}
+    d'aujourd'hui face au jour ${jourActuel} des cycles précédents.</p>
+    <p>Pour chaque indicateur, vous lisez la valeur du jour, celle qu'avaient les
+    cycles précédents au même stade, et l'écart entre les deux. Le but n'est pas
+    de deviner la suite, mais de voir où l'on se situe par rapport à ce qui
+    s'est déjà produit.</p>
+  `;
 }
 
 // --- Boutons de sélection de la métrique -----------------------------------
