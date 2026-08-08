@@ -22,14 +22,11 @@ OUTPUT_FILE = ROOT / "docs" / "data.js"
 
 METRICS = ["mvrv", "mayer_multiple", "drawdown_pct"]
 
-# Lissage de la fourchette historique, en jours de part et d'autre.
-# Sans lissage, la bande min-max de trois séries très volatiles est tellement
-# dentelée qu'elle se lit comme du bruit. On regroupe donc les valeurs
-# observées autour de la même phase de cycle, ce qui rejoint la fenêtre déjà
-# utilisée par cycle_engine.py. La bande obtenue est un peu plus large que le
-# min-max jour par jour : elle dit "voici ce qu'on a observé autour de ce
-# moment du cycle", ce qui est plus prudent, pas moins.
-ENVELOPE_WINDOW = 10
+# Note : la fourchette min / médiane / max entre cycles n'est PAS calculée ici.
+# Elle est recalculée par la page web, parce que l'utilisateur peut y choisir
+# quels cycles afficher : une fourchette figée à 3 cycles serait fausse dès
+# qu'il n'en sélectionne que deux. Voir la fonction calculerFourchette()
+# dans docs/index.html.
 
 HALVING_LABELS = {
     1: "Cycle 2012",
@@ -82,58 +79,6 @@ def build_series(cycles):
     return series
 
 
-def build_envelope(cycles, reference_numbers):
-    """Fourchette (min / médiane / max) des cycles de référence autour de chaque
-    jour du cycle. C'est ce qui rend la dispersion visible en permanence sur le
-    graphique, plutôt qu'un seul chiffre à la date du jour.
-
-    On ne garde que les jours où TOUS les cycles de référence ont des valeurs :
-    sinon la fourchette se rétrécirait artificiellement en fin de graphique,
-    simplement parce qu'il y reste moins de cycles."""
-    # Pour chaque cycle et chaque métrique : jour -> valeur
-    par_cycle = {n: {m: {} for m in METRICS} for n in reference_numbers}
-    for n in reference_numbers:
-        for row in cycles[n]:
-            day = int(row["days_since_halving"])
-            for metric in METRICS:
-                value = to_float(row[metric])
-                if value is not None:
-                    par_cycle[n][metric][day] = value
-
-    dernier_jour_commun = min(
-        max(par_cycle[n][METRICS[0]]) for n in reference_numbers
-    )
-
-    envelope = {metric: [] for metric in METRICS}
-    for day in range(dernier_jour_commun + 1):
-        for metric in METRICS:
-            values = []
-            tous_presents = True
-            for n in reference_numbers:
-                serie = par_cycle[n][metric]
-                proches = [
-                    serie[d]
-                    for d in range(day - ENVELOPE_WINDOW, day + ENVELOPE_WINDOW + 1)
-                    if d in serie
-                ]
-                if not proches:
-                    tous_presents = False
-                    break
-                values.extend(proches)
-
-            if not tous_presents:
-                continue
-
-            values.sort()
-            envelope[metric].append([
-                day,
-                round(values[0], 3),
-                round(values[len(values) // 2], 3),
-                round(values[-1], 3),
-            ])
-    return envelope
-
-
 def main():
     print("Lecture des données...")
     cycles = load_cycles()
@@ -141,14 +86,12 @@ def main():
     reference_numbers = sorted(n for n in cycles if n != current_number)
 
     series = build_series(cycles)
-    envelope = build_envelope(cycles, reference_numbers)
 
     with open(POSITION_FILE) as f:
         position = json.load(f)
 
     payload = {
         "cycles": series,
-        "envelope": envelope,
         "current_cycle_number": current_number,
         "reference_cycle_numbers": reference_numbers,
         "position": position,
@@ -166,7 +109,6 @@ def main():
     print(f"Terminé : {OUTPUT_FILE} ({size_ko:.0f} Ko)")
     for n, data in sorted(series.items()):
         print(f"  {data['label']} : {len(data['points'])} jours")
-    print(f"  Fourchette historique : {len(envelope['mvrv'])} jours couverts")
 
 
 if __name__ == "__main__":

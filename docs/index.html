@@ -13,10 +13,14 @@
     --texte-doux: #5d6470;
     --bordure: #e2e5ea;
     --actuel: #d9480f;
-    --historique: #7a8595;
-    --bande: rgba(122, 133, 149, 0.18);
+    --bande: rgba(122, 133, 149, 0.20);
     --alerte-fond: #fff8e6;
     --alerte-bordure: #e6c65c;
+    /* Une couleur par cycle de référence, pour pouvoir les distinguer
+       quand plusieurs sont affichés en même temps. */
+    --cycle-1: #3b6fa8;
+    --cycle-2: #3f8f52;
+    --cycle-3: #9a5fa0;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -26,10 +30,12 @@
       --texte-doux: #a0a7b4;
       --bordure: #2e333b;
       --actuel: #ff8b4d;
-      --historique: #8e99a8;
-      --bande: rgba(142, 153, 168, 0.22);
+      --bande: rgba(142, 153, 168, 0.24);
       --alerte-fond: #2a2415;
       --alerte-bordure: #7a6420;
+      --cycle-1: #6ba3dd;
+      --cycle-2: #6dc07f;
+      --cycle-3: #c48fca;
     }
   }
 
@@ -58,9 +64,18 @@
     margin-bottom: 22px;
   }
   .avertissement strong { display: block; margin-bottom: 4px; }
+  .avertissement .selection { display: block; margin-top: 8px; font-weight: 600; }
 
-  .onglets { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-  .onglets button {
+  .barre-reglages { display: flex; flex-wrap: wrap; gap: 22px; margin-bottom: 16px; }
+  .groupe-reglage { display: flex; flex-direction: column; gap: 7px; }
+  .groupe-reglage .intitule {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--texte-doux);
+  }
+  .boutons { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .boutons button {
     font: inherit;
     font-size: 0.9rem;
     padding: 7px 14px;
@@ -76,6 +91,27 @@
     border-color: var(--texte);
   }
 
+  /* Boutons d'affichage des cycles : la pastille de couleur reprend celle de
+     la courbe, et le bouton s'éteint visuellement quand le cycle est masqué. */
+  .bascule { display: inline-flex; align-items: center; gap: 8px; }
+  .bascule .pastille {
+    width: 11px; height: 11px; border-radius: 50%;
+    background: var(--couleur-cycle);
+    flex: none;
+  }
+  .bascule[aria-pressed="false"] { opacity: 0.45; }
+  .bascule[aria-pressed="false"] .pastille { background: transparent; box-shadow: inset 0 0 0 2px var(--couleur-cycle); }
+  .bascule[aria-pressed="true"] { border-color: var(--couleur-cycle); }
+  .lien-rapide {
+    background: none !important;
+    border: none !important;
+    color: var(--texte-doux) !important;
+    text-decoration: underline;
+    padding: 4px 2px !important;
+    font-size: 0.84rem !important;
+    cursor: pointer;
+  }
+
   .cadre-graphique {
     border: 1px solid var(--bordure);
     border-radius: 10px;
@@ -87,16 +123,16 @@
   .axe { stroke: var(--bordure); stroke-width: 1; }
   .graduation { fill: var(--texte-doux); font-size: 11px; }
   .titre-axe { fill: var(--texte-doux); font-size: 12px; }
-  .ligne-historique { fill: none; stroke: var(--historique); stroke-width: 1.2; opacity: 0.75; }
+  .ligne-historique { fill: none; stroke-width: 1.5; opacity: 0.9; }
   .ligne-actuelle { fill: none; stroke: var(--actuel); stroke-width: 2.4; }
-  .ligne-mediane { fill: none; stroke: var(--historique); stroke-width: 1.4; stroke-dasharray: 5 4; opacity: 0.9; }
+  .ligne-mediane { fill: none; stroke: var(--texte-doux); stroke-width: 1.4; stroke-dasharray: 5 4; opacity: 0.85; }
   .bande-historique { fill: var(--bande); }
   .point-actuel { fill: var(--actuel); stroke: var(--fond); stroke-width: 2; }
   .curseur { stroke: var(--texte-doux); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.7; }
 
   .legende { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; font-size: 0.85rem; color: var(--texte-doux); }
   .legende span { display: inline-flex; align-items: center; gap: 6px; }
-  .puce { width: 16px; height: 3px; border-radius: 2px; display: inline-block; }
+  .puce { width: 16px; height: 3px; border-radius: 2px; display: inline-block; flex: none; }
 
   .infobulle {
     font-size: 0.86rem;
@@ -138,24 +174,29 @@
 <div class="avertissement">
   <strong>À lire avant d'interpréter quoi que ce soit</strong>
   <span id="texte-avertissement"></span>
+  <span class="selection" id="avertissement-selection"></span>
 </div>
 
-<div class="onglets" id="onglets" role="tablist"></div>
+<div class="barre-reglages">
+  <div class="groupe-reglage">
+    <span class="intitule">Métrique</span>
+    <div class="boutons onglets" id="onglets" role="tablist"></div>
+  </div>
+  <div class="groupe-reglage">
+    <span class="intitule">Cycles de référence affichés</span>
+    <div class="boutons" id="bascules"></div>
+  </div>
+</div>
 
 <div class="cadre-graphique">
   <svg id="graphique" viewBox="0 0 900 460" role="img" aria-label="Comparaison des cycles Bitcoin"></svg>
 </div>
 
-<div class="legende">
-  <span><i class="puce" style="background: var(--actuel)"></i> Cycle en cours</span>
-  <span><i class="puce" style="background: var(--historique)"></i> Cycles précédents</span>
-  <span><i class="puce" style="background: var(--historique); opacity:.6"></i> Médiane historique (pointillés)</span>
-  <span><i class="puce" style="background: var(--bande); height: 10px; width: 16px"></i> Fourchette min–max des cycles précédents (lissée sur ±10 jours)</span>
-</div>
+<div class="legende" id="legende"></div>
 
 <p class="infobulle" id="infobulle">Survolez le graphique pour lire les valeurs jour par jour.</p>
 
-<h2>Position actuelle par rapport aux cycles précédents</h2>
+<h2>Position actuelle par rapport aux cycles sélectionnés</h2>
 <table id="tableau"></table>
 
 <div class="lecture" id="lecture"></div>
@@ -206,11 +247,29 @@ const LARGEUR = 900, HAUTEUR = 460;
 const largeurTrace = LARGEUR - MARGE.gauche - MARGE.droite;
 const hauteurTrace = HAUTEUR - MARGE.haut - MARGE.bas;
 
+// Lissage de la fourchette, en jours de part et d'autre. Sans lissage, la bande
+// min-max de séries très volatiles est si dentelée qu'elle se lit comme du
+// bruit. On regroupe les valeurs observées autour de la même phase de cycle.
+// La bande obtenue est un peu plus large que le min-max jour par jour : elle
+// dit « voici ce qu'on a observé autour de ce moment du cycle », ce qui est
+// plus prudent, pas moins.
+const FENETRE_LISSAGE = 10;
+
 const numeroActuel = DONNEES.current_cycle_number;
 const cycleActuel = DONNEES.cycles[numeroActuel];
 const jourActuel = DONNEES.position.current_cycle.days_since_halving;
 
 let metriqueChoisie = "drawdown_pct";
+// Au départ, tous les cycles de référence sont affichés.
+let cyclesAffiches = new Set(DONNEES.reference_cycle_numbers);
+
+function couleurCycle(n) {
+  return `var(--cycle-${n})`;
+}
+function cyclesSelectionnes() {
+  // Toujours dans le même ordre, pour que couleurs et légende soient stables.
+  return DONNEES.reference_cycle_numbers.filter(n => cyclesAffiches.has(n));
+}
 
 // Le jour le plus lointain affiché : le plus long des cycles connus.
 const jourMax = Math.max(
@@ -222,16 +281,47 @@ document.getElementById("sous-titre").textContent =
   `Données au ${DONNEES.position.generated_date} — jour ${jourActuel} après le halving de 2024.`;
 document.getElementById("texte-avertissement").textContent = DONNEES.position.caveat;
 
-// --- Onglets de sélection de métrique --------------------------------------
+// --- Boutons de sélection de la métrique -----------------------------------
 const onglets = document.getElementById("onglets");
 Object.entries(METRIQUES).forEach(([cle, conf]) => {
   const bouton = document.createElement("button");
   bouton.textContent = conf.titre;
   bouton.setAttribute("role", "tab");
-  bouton.onclick = () => { metriqueChoisie = cle; dessinerTout(); };
   bouton.dataset.cle = cle;
+  bouton.onclick = () => { metriqueChoisie = cle; dessinerTout(); };
   onglets.appendChild(bouton);
 });
+
+// --- Boutons d'affichage des cycles ----------------------------------------
+const bascules = document.getElementById("bascules");
+DONNEES.reference_cycle_numbers.forEach(n => {
+  const bouton = document.createElement("button");
+  bouton.className = "bascule";
+  bouton.dataset.cycle = n;
+  bouton.style.setProperty("--couleur-cycle", couleurCycle(n));
+  bouton.innerHTML = `<i class="pastille"></i>${DONNEES.cycles[n].label}`;
+  bouton.onclick = () => {
+    if (cyclesAffiches.has(n)) cyclesAffiches.delete(n);
+    else cyclesAffiches.add(n);
+    dessinerTout();
+  };
+  bascules.appendChild(bouton);
+});
+
+const lienTous = document.createElement("button");
+lienTous.className = "lien-rapide";
+lienTous.textContent = "tout afficher";
+lienTous.onclick = () => {
+  cyclesAffiches = new Set(DONNEES.reference_cycle_numbers);
+  dessinerTout();
+};
+bascules.appendChild(lienTous);
+
+const lienAucun = document.createElement("button");
+lienAucun.className = "lien-rapide";
+lienAucun.textContent = "tout masquer";
+lienAucun.onclick = () => { cyclesAffiches = new Set(); dessinerTout(); };
+bascules.appendChild(lienAucun);
 
 // --- Fonctions de conversion données -> coordonnées du dessin ---------------
 function echelleX(jour) {
@@ -246,9 +336,11 @@ function fabriquerEchelleY(min, max) {
 }
 
 function bornesMetrique(index) {
+  // L'échelle verticale ne tient compte que des courbes réellement affichées,
+  // pour que le graphique se recadre quand on masque des cycles.
   let min = Infinity, max = -Infinity;
-  Object.values(DONNEES.cycles).forEach(cycle => {
-    cycle.points.forEach(p => {
+  [...cyclesSelectionnes(), numeroActuel].forEach(n => {
+    DONNEES.cycles[n].points.forEach(p => {
       const v = p[index];
       if (v === null) return;
       if (v < min) min = v;
@@ -270,35 +362,103 @@ function cheminDepuisPoints(points, index, echelleY) {
   return d.trim();
 }
 
+// --- Fourchette entre les cycles sélectionnés -------------------------------
+// Recalculée ici (et non préparée à l'avance côté Python) parce qu'elle doit
+// suivre la sélection : afficher une fourchette sur 3 cycles alors que
+// l'utilisateur n'en regarde qu'un serait trompeur.
+function calculerFourchette(numeros, index) {
+  // En dessous de deux cycles, il n'y a pas de dispersion à montrer : avec un
+  // seul cycle, la « fourchette » ne décrirait que sa propre volatilité sur
+  // quelques jours, ce qui n'a rien à voir avec un écart entre cycles.
+  if (numeros.length < 2) return [];
+
+  const parCycle = numeros.map(n => {
+    const valeurs = new Map();
+    DONNEES.cycles[n].points.forEach(p => {
+      if (p[index] !== null) valeurs.set(p[0], p[index]);
+    });
+    return valeurs;
+  });
+
+  // On s'arrête au plus court des cycles sélectionnés : au-delà, la fourchette
+  // se rétrécirait artificiellement, faute de cycles encore présents.
+  const dernierJourCommun = Math.min(...parCycle.map(m => Math.max(...m.keys())));
+
+  const resultat = [];
+  for (let jour = 0; jour <= dernierJourCommun; jour++) {
+    const valeurs = [];
+    let complet = true;
+    for (const serie of parCycle) {
+      const proches = [];
+      for (let d = jour - FENETRE_LISSAGE; d <= jour + FENETRE_LISSAGE; d++) {
+        if (serie.has(d)) proches.push(serie.get(d));
+      }
+      if (!proches.length) { complet = false; break; }
+      valeurs.push(...proches);
+    }
+    if (!complet) continue;
+    valeurs.sort((a, b) => a - b);
+    resultat.push([
+      jour,
+      valeurs[0],
+      valeurs[Math.floor(valeurs.length / 2)],
+      valeurs[valeurs.length - 1],
+    ]);
+  }
+  return resultat;
+}
+
+// --- Valeurs des cycles sélectionnés au jour exact où nous sommes -----------
+function valeursAuJourActuel(numeros, index) {
+  const valeurs = {};
+  numeros.forEach(n => {
+    const point = DONNEES.cycles[n].points.find(p => p[0] === jourActuel);
+    if (point && point[index] !== null) valeurs[n] = point[index];
+  });
+  return valeurs;
+}
+
+function statistiques(valeurs) {
+  const liste = Object.values(valeurs).sort((a, b) => a - b);
+  if (!liste.length) return null;
+  return {
+    min: liste[0],
+    max: liste[liste.length - 1],
+    mediane: liste[Math.floor(liste.length / 2)],
+    nombre: liste.length,
+  };
+}
+
 // --- Dessin du graphique ---------------------------------------------------
 function dessinerGraphique() {
   const conf = METRIQUES[metriqueChoisie];
+  const selection = cyclesSelectionnes();
   const [min, max] = bornesMetrique(conf.index);
   const echelleY = fabriquerEchelleY(min, max);
   const svg = document.getElementById("graphique");
   const parties = [];
 
-  // Bande min-max des cycles précédents : rend la dispersion visible partout.
-  const enveloppe = DONNEES.envelope[metriqueChoisie];
-  if (enveloppe && enveloppe.length) {
+  // Bande de fourchette : rend la dispersion visible partout, pas seulement
+  // à la date du jour.
+  const fourchette = calculerFourchette(selection, conf.index);
+  if (fourchette.length) {
     let haut = "", bas = "";
-    enveloppe.forEach((e, i) => {
+    fourchette.forEach((e, i) => {
       haut += (i ? "L" : "M") + echelleX(e[0]).toFixed(1) + " " + echelleY(e[3]).toFixed(1) + " ";
     });
-    for (let i = enveloppe.length - 1; i >= 0; i--) {
-      const e = enveloppe[i];
-      bas += "L" + echelleX(e[0]).toFixed(1) + " " + echelleY(e[1]).toFixed(1) + " ";
+    for (let i = fourchette.length - 1; i >= 0; i--) {
+      bas += "L" + echelleX(fourchette[i][0]).toFixed(1) + " " + echelleY(fourchette[i][1]).toFixed(1) + " ";
     }
     parties.push(`<path class="bande-historique" d="${haut}${bas}Z"></path>`);
-    // Médiane en pointillés
-    let med = "";
-    enveloppe.forEach((e, i) => {
-      med += (i ? "L" : "M") + echelleX(e[0]).toFixed(1) + " " + echelleY(e[2]).toFixed(1) + " ";
+
+    let mediane = "";
+    fourchette.forEach((e, i) => {
+      mediane += (i ? "L" : "M") + echelleX(e[0]).toFixed(1) + " " + echelleY(e[2]).toFixed(1) + " ";
     });
-    parties.push(`<path class="ligne-mediane" d="${med.trim()}"></path>`);
+    parties.push(`<path class="ligne-mediane" d="${mediane.trim()}"></path>`);
   }
 
-  // Graduations verticales (axe des valeurs)
+  // Graduations horizontales (axe des valeurs)
   const nbGraduations = 5;
   for (let i = 0; i <= nbGraduations; i++) {
     const v = min + (max - min) * (i / nbGraduations);
@@ -307,7 +467,7 @@ function dessinerGraphique() {
     parties.push(`<text class="graduation" x="${MARGE.gauche - 8}" y="${y}" text-anchor="end" dominant-baseline="middle">${conf.format(v)}</text>`);
   }
 
-  // Graduations horizontales (axe du temps, en jours après le halving)
+  // Graduations verticales (axe du temps, en jours après le halving)
   for (let jour = 0; jour <= jourMax; jour += 200) {
     const x = echelleX(jour).toFixed(1);
     parties.push(`<line class="axe" x1="${x}" y1="${HAUTEUR - MARGE.bas}" x2="${x}" y2="${HAUTEUR - MARGE.bas + 5}"></line>`);
@@ -317,10 +477,10 @@ function dessinerGraphique() {
   parties.push(`<text class="titre-axe" x="${MARGE.gauche + largeurTrace / 2}" y="${HAUTEUR - 8}" text-anchor="middle">Jours écoulés depuis le halving</text>`);
   parties.push(`<text class="titre-axe" transform="rotate(-90)" x="${-(MARGE.haut + hauteurTrace / 2)}" y="14" text-anchor="middle">${conf.axe}</text>`);
 
-  // Courbes des cycles précédents, puis du cycle en cours par-dessus.
-  DONNEES.reference_cycle_numbers.forEach(n => {
+  // Courbes des cycles sélectionnés, puis du cycle en cours par-dessus.
+  selection.forEach(n => {
     const d = cheminDepuisPoints(DONNEES.cycles[n].points, conf.index, echelleY);
-    parties.push(`<path class="ligne-historique" d="${d}"></path>`);
+    parties.push(`<path class="ligne-historique" style="stroke: ${couleurCycle(n)}" d="${d}"></path>`);
   });
   parties.push(`<path class="ligne-actuelle" d="${cheminDepuisPoints(cycleActuel.points, conf.index, echelleY)}"></path>`);
 
@@ -335,9 +495,25 @@ function dessinerGraphique() {
   svg.innerHTML = parties.join("\n");
   svg.onmousemove = evenement => survol(evenement, svg);
   svg.onmouseleave = () => {
-    document.getElementById("curseur").style.display = "none";
+    const curseur = document.getElementById("curseur");
+    if (curseur) curseur.style.display = "none";
     document.getElementById("infobulle").textContent = "Survolez le graphique pour lire les valeurs jour par jour.";
   };
+}
+
+// --- Légende, reconstruite selon les cycles affichés ------------------------
+function dessinerLegende() {
+  const morceaux = [
+    `<span><i class="puce" style="background: var(--actuel)"></i> ${cycleActuel.label}</span>`,
+  ];
+  cyclesSelectionnes().forEach(n => {
+    morceaux.push(`<span><i class="puce" style="background: ${couleurCycle(n)}"></i> ${DONNEES.cycles[n].label}</span>`);
+  });
+  if (cyclesSelectionnes().length >= 2) {
+    morceaux.push(`<span><i class="puce" style="background: var(--texte-doux); opacity:.7"></i> Médiane des cycles affichés (pointillés)</span>`);
+    morceaux.push(`<span><i class="puce" style="background: var(--bande); height: 10px"></i> Fourchette min–max des cycles affichés (lissée sur ±${FENETRE_LISSAGE} jours)</span>`);
+  }
+  document.getElementById("legende").innerHTML = morceaux.join("");
 }
 
 // --- Lecture des valeurs au survol -----------------------------------------
@@ -364,30 +540,45 @@ function survol(evenement, svg) {
   curseur.style.display = "";
 
   const morceaux = [`Jour ${jour} :`];
-  [...DONNEES.reference_cycle_numbers, numeroActuel].forEach(n => {
+  [...cyclesSelectionnes(), numeroActuel].forEach(n => {
     const v = valeurAuJour(DONNEES.cycles[n].points, jour, conf.index);
     morceaux.push(`${DONNEES.cycles[n].label} ${v === null ? "—" : conf.format(v)}`);
   });
   document.getElementById("infobulle").textContent = morceaux.join("  ·  ");
 }
 
+// --- Formulation adaptée au nombre de cycles sélectionnés -------------------
+function nommerSelection(nombre) {
+  if (nombre === 1) return "du cycle sélectionné";
+  return `des ${nombre} cycles sélectionnés`;
+}
+
 // --- Tableau récapitulatif --------------------------------------------------
 function dessinerTableau() {
-  const lignes = [`<tr><th>Métrique</th><th>Aujourd'hui</th><th>Cycles précédents au même jour (min → max)</th><th>Médiane</th><th>Situation</th></tr>`];
+  const selection = cyclesSelectionnes();
+  const lignes = [`<tr><th>Métrique</th><th>Aujourd'hui</th><th>Cycles sélectionnés au même jour (min → max)</th><th>Médiane</th><th>Situation</th></tr>`];
 
   Object.entries(METRIQUES).forEach(([cle, conf]) => {
-    const p = DONNEES.position.metrics[cle];
-    if (!p) return;
-    let situation;
-    if (p.current_value > p.historical_max) situation = "au-dessus des 3 cycles";
-    else if (p.current_value < p.historical_min) situation = "en dessous des 3 cycles";
-    else situation = "dans la fourchette";
+    const position = DONNEES.position.metrics[cle];
+    if (!position) return;
+    const stats = statistiques(valeursAuJourActuel(selection, conf.index));
+
+    let comparaison = "—", mediane = "—", situation = "aucun cycle sélectionné";
+    if (stats) {
+      comparaison = stats.min === stats.max
+        ? conf.format(stats.min)
+        : `${conf.format(stats.min)} → ${conf.format(stats.max)}`;
+      mediane = conf.format(stats.mediane);
+      if (position.current_value > stats.max) situation = `au-dessus ${nommerSelection(stats.nombre)}`;
+      else if (position.current_value < stats.min) situation = `en dessous ${nommerSelection(stats.nombre)}`;
+      else situation = "dans la fourchette";
+    }
 
     lignes.push(`<tr>
       <td>${conf.titre}</td>
-      <td class="valeur-actuelle">${conf.format(p.current_value)}</td>
-      <td>${conf.format(p.historical_min)} → ${conf.format(p.historical_max)}</td>
-      <td>${conf.format(p.historical_median)}</td>
+      <td class="valeur-actuelle">${conf.format(position.current_value)}</td>
+      <td>${comparaison}</td>
+      <td>${mediane}</td>
       <td>${situation}</td>
     </tr>`);
   });
@@ -398,38 +589,73 @@ function dessinerTableau() {
 // --- Texte de lecture, volontairement descriptif et non prédictif -----------
 function dessinerLecture() {
   const conf = METRIQUES[metriqueChoisie];
-  const p = DONNEES.position.metrics[metriqueChoisie];
+  const position = DONNEES.position.metrics[metriqueChoisie];
   const bloc = document.getElementById("lecture");
-  if (!p) { bloc.textContent = ""; return; }
+  if (!position) { bloc.textContent = ""; return; }
 
-  let situation;
-  if (p.current_value > p.historical_max) {
-    situation = `au-dessus des trois cycles précédents observés au même stade (${conf.format(p.historical_min)} → ${conf.format(p.historical_max)})`;
-  } else if (p.current_value < p.historical_min) {
-    situation = `en dessous des trois cycles précédents observés au même stade (${conf.format(p.historical_min)} → ${conf.format(p.historical_max)})`;
+  const selection = cyclesSelectionnes();
+  const stats = statistiques(valeursAuJourActuel(selection, conf.index));
+
+  let phrase;
+  if (!stats) {
+    phrase = `Aucun cycle de référence n'est affiché : il n'y a pour l'instant
+      rien à quoi comparer la valeur actuelle
+      (<strong>${conf.format(position.current_value)}</strong>).`;
   } else {
-    situation = `dans la fourchette des trois cycles précédents au même stade (${conf.format(p.historical_min)} → ${conf.format(p.historical_max)})`;
+    const etendue = stats.min === stats.max
+      ? conf.format(stats.min)
+      : `${conf.format(stats.min)} → ${conf.format(stats.max)}`;
+    let situation;
+    if (position.current_value > stats.max) situation = `au-dessus ${nommerSelection(stats.nombre)}`;
+    else if (position.current_value < stats.min) situation = `en dessous ${nommerSelection(stats.nombre)}`;
+    else situation = `dans la fourchette ${nommerSelection(stats.nombre)}`;
+    phrase = `Au jour ${jourActuel} après le halving, la valeur actuelle
+      (<strong>${conf.format(position.current_value)}</strong>) se situe
+      ${situation} au même stade (${etendue}).`;
   }
 
   bloc.innerHTML = `
     <p><strong>${conf.titre}</strong> — ${conf.explication}</p>
-    <p>Au jour ${jourActuel} après le halving, la valeur actuelle
-    (<strong>${conf.format(p.current_value)}</strong>) se situe ${situation}.</p>
-    <p style="color: var(--texte-doux)">Avec seulement trois cycles de référence, une
-    « fourchette » ne décrit que trois trajectoires passées : elle ne délimite pas ce qui
-    est possible. Un percentile calculé sur trois valeurs ne peut d'ailleurs valoir que
+    <p>${phrase}</p>
+    <p style="color: var(--texte-doux)">Une « fourchette » construite sur si peu de
+    cycles ne décrit que quelques trajectoires passées : elle ne délimite pas ce qui est
+    possible. Un percentile calculé sur trois valeurs ne peut d'ailleurs valoir que
     0, 33, 67 ou 100 % — c'est pourquoi cette page affiche la fourchette plutôt qu'un
     score unique. Ce constat est une description du passé, pas une anticipation.</p>
   `;
+}
+
+// --- Rappel dynamique lié à la sélection ------------------------------------
+function dessinerAvertissementSelection() {
+  const nombre = cyclesSelectionnes().length;
+  const total = DONNEES.reference_cycle_numbers.length;
+  const bloc = document.getElementById("avertissement-selection");
+
+  if (nombre === total) { bloc.textContent = ""; return; }
+  if (nombre === 0) {
+    bloc.textContent = "Aucun cycle de référence n'est affiché : la comparaison est désactivée.";
+  } else if (nombre === 1) {
+    bloc.textContent = `Vous n'affichez qu'un cycle de référence sur ${total}. `
+      + "Un cycle unique est une trajectoire, pas une fourchette : tout écart mesuré "
+      + "par rapport à lui est encore moins concluant que la comparaison complète.";
+  } else {
+    bloc.textContent = `Vous n'affichez que ${nombre} cycles de référence sur ${total} : `
+      + "les fourchettes ci-dessous ne portent que sur cette sélection.";
+  }
 }
 
 function dessinerTout() {
   [...onglets.children].forEach(b => {
     b.setAttribute("aria-selected", b.dataset.cle === metriqueChoisie);
   });
+  [...bascules.querySelectorAll(".bascule")].forEach(b => {
+    b.setAttribute("aria-pressed", cyclesAffiches.has(Number(b.dataset.cycle)));
+  });
   dessinerGraphique();
+  dessinerLegende();
   dessinerTableau();
   dessinerLecture();
+  dessinerAvertissementSelection();
 }
 
 dessinerTout();
