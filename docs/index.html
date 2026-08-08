@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cycles Bitcoin — position actuelle</title>
+<style>
+  /* Couleurs : deux jeux, un pour le mode clair, un pour le mode sombre. */
+  :root {
+    --fond: #ffffff;
+    --fond-bloc: #f6f7f9;
+    --texte: #1a1c1f;
+    --texte-doux: #5d6470;
+    --bordure: #e2e5ea;
+    --actuel: #d9480f;
+    --historique: #7a8595;
+    --bande: rgba(122, 133, 149, 0.18);
+    --alerte-fond: #fff8e6;
+    --alerte-bordure: #e6c65c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fond: #16181c;
+      --fond-bloc: #1e2126;
+      --texte: #e8eaed;
+      --texte-doux: #a0a7b4;
+      --bordure: #2e333b;
+      --actuel: #ff8b4d;
+      --historique: #8e99a8;
+      --bande: rgba(142, 153, 168, 0.22);
+      --alerte-fond: #2a2415;
+      --alerte-bordure: #7a6420;
+    }
+  }
+
+  body {
+    margin: 0;
+    padding: 24px 20px 48px;
+    background: var(--fond);
+    color: var(--texte);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    line-height: 1.55;
+    max-width: 980px;
+    margin-inline: auto;
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  h2 { font-size: 1.05rem; margin: 32px 0 10px; }
+  .sous-titre { color: var(--texte-doux); margin: 0 0 20px; font-size: 0.92rem; }
+
+  /* Le rappel d'incertitude reste visible en permanence : c'est une règle
+     du projet, pas une décoration. */
+  .avertissement {
+    background: var(--alerte-fond);
+    border: 1px solid var(--alerte-bordure);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 0.88rem;
+    margin-bottom: 22px;
+  }
+  .avertissement strong { display: block; margin-bottom: 4px; }
+
+  .onglets { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .onglets button {
+    font: inherit;
+    font-size: 0.9rem;
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--bordure);
+    background: var(--fond-bloc);
+    color: var(--texte);
+    cursor: pointer;
+  }
+  .onglets button[aria-selected="true"] {
+    background: var(--texte);
+    color: var(--fond);
+    border-color: var(--texte);
+  }
+
+  .cadre-graphique {
+    border: 1px solid var(--bordure);
+    border-radius: 10px;
+    background: var(--fond-bloc);
+    padding: 8px;
+    overflow-x: auto;
+  }
+  svg { display: block; width: 100%; height: auto; min-width: 560px; }
+  .axe { stroke: var(--bordure); stroke-width: 1; }
+  .graduation { fill: var(--texte-doux); font-size: 11px; }
+  .titre-axe { fill: var(--texte-doux); font-size: 12px; }
+  .ligne-historique { fill: none; stroke: var(--historique); stroke-width: 1.2; opacity: 0.75; }
+  .ligne-actuelle { fill: none; stroke: var(--actuel); stroke-width: 2.4; }
+  .ligne-mediane { fill: none; stroke: var(--historique); stroke-width: 1.4; stroke-dasharray: 5 4; opacity: 0.9; }
+  .bande-historique { fill: var(--bande); }
+  .point-actuel { fill: var(--actuel); stroke: var(--fond); stroke-width: 2; }
+  .curseur { stroke: var(--texte-doux); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.7; }
+
+  .legende { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; font-size: 0.85rem; color: var(--texte-doux); }
+  .legende span { display: inline-flex; align-items: center; gap: 6px; }
+  .puce { width: 16px; height: 3px; border-radius: 2px; display: inline-block; }
+
+  .infobulle {
+    font-size: 0.86rem;
+    color: var(--texte-doux);
+    min-height: 1.5em;
+    margin-top: 8px;
+  }
+
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; margin-top: 6px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--bordure); }
+  th { color: var(--texte-doux); font-weight: 600; }
+  td.valeur-actuelle { color: var(--actuel); font-weight: 600; }
+
+  .lecture {
+    background: var(--fond-bloc);
+    border: 1px solid var(--bordure);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-top: 14px;
+    font-size: 0.92rem;
+  }
+  .lecture p { margin: 0 0 8px; }
+  .lecture p:last-child { margin-bottom: 0; }
+
+  footer {
+    margin-top: 36px;
+    padding-top: 16px;
+    border-top: 1px solid var(--bordure);
+    font-size: 0.82rem;
+    color: var(--texte-doux);
+  }
+</style>
+</head>
+<body>
+
+<h1>Cycles Bitcoin — où en sommes-nous ?</h1>
+<p class="sous-titre" id="sous-titre"></p>
+
+<div class="avertissement">
+  <strong>À lire avant d'interpréter quoi que ce soit</strong>
+  <span id="texte-avertissement"></span>
+</div>
+
+<div class="onglets" id="onglets" role="tablist"></div>
+
+<div class="cadre-graphique">
+  <svg id="graphique" viewBox="0 0 900 460" role="img" aria-label="Comparaison des cycles Bitcoin"></svg>
+</div>
+
+<div class="legende">
+  <span><i class="puce" style="background: var(--actuel)"></i> Cycle en cours</span>
+  <span><i class="puce" style="background: var(--historique)"></i> Cycles précédents</span>
+  <span><i class="puce" style="background: var(--historique); opacity:.6"></i> Médiane historique (pointillés)</span>
+  <span><i class="puce" style="background: var(--bande); height: 10px; width: 16px"></i> Fourchette min–max des cycles précédents (lissée sur ±10 jours)</span>
+</div>
+
+<p class="infobulle" id="infobulle">Survolez le graphique pour lire les valeurs jour par jour.</p>
+
+<h2>Position actuelle par rapport aux cycles précédents</h2>
+<table id="tableau"></table>
+
+<div class="lecture" id="lecture"></div>
+
+<footer>
+  <p>Données : Coin Metrics Community API (licence Creative Commons BY-NC 4.0,
+  usage non commercial). Prix réalisé recalculé à partir de la capitalisation
+  de marché et du MVRV.</p>
+  <p>Cet outil est une aide à la réflexion personnelle. Il ne constitue pas un
+  conseil en investissement, ne formule aucune prévision de date ou de prix, et
+  n'est destiné à aucune diffusion à des tiers.</p>
+</footer>
+
+<script src="data.js"></script>
+<script>
+// ---------------------------------------------------------------------------
+// Configuration des trois métriques affichables.
+// "index" = position de la valeur dans chaque point [jour, mvrv, mayer, dd, prix]
+// ---------------------------------------------------------------------------
+const METRIQUES = {
+  mvrv: {
+    index: 1,
+    titre: "MVRV",
+    axe: "MVRV (capitalisation de marché / capitalisation réalisée)",
+    explication: "Compare la valeur de marché au prix moyen d'acquisition réel des bitcoins. Au-dessus de 1, le marché est en plus-value latente ; en dessous, en moins-value.",
+    format: v => v.toFixed(2),
+  },
+  mayer_multiple: {
+    index: 2,
+    titre: "Mayer Multiple",
+    axe: "Mayer Multiple (prix / moyenne 200 jours)",
+    explication: "Écart du prix à sa moyenne sur 200 jours. Au-dessus de 1, le prix est au-dessus de sa tendance longue ; en dessous, sous sa tendance.",
+    format: v => v.toFixed(2),
+  },
+  drawdown_pct: {
+    index: 3,
+    titre: "Drawdown",
+    axe: "Drawdown depuis le plus haut historique (%)",
+    explication: "Écart au plus haut jamais atteint jusqu'à cette date. 0 % signifie un nouveau record.",
+    format: v => v.toFixed(1) + " %",
+  },
+};
+
+// Marge gauche large : elle doit contenir à la fois le titre vertical de l'axe
+// et des étiquettes longues comme "-84.5 %", sans qu'ils se chevauchent.
+const MARGE = { haut: 18, droite: 18, bas: 46, gauche: 84 };
+const LARGEUR = 900, HAUTEUR = 460;
+const largeurTrace = LARGEUR - MARGE.gauche - MARGE.droite;
+const hauteurTrace = HAUTEUR - MARGE.haut - MARGE.bas;
+
+const numeroActuel = DONNEES.current_cycle_number;
+const cycleActuel = DONNEES.cycles[numeroActuel];
+const jourActuel = DONNEES.position.current_cycle.days_since_halving;
+
+let metriqueChoisie = "drawdown_pct";
+
+// Le jour le plus lointain affiché : le plus long des cycles connus.
+const jourMax = Math.max(
+  ...Object.values(DONNEES.cycles).map(c => c.points[c.points.length - 1][0])
+);
+
+// --- Textes d'en-tête ------------------------------------------------------
+document.getElementById("sous-titre").textContent =
+  `Données au ${DONNEES.position.generated_date} — jour ${jourActuel} après le halving de 2024.`;
+document.getElementById("texte-avertissement").textContent = DONNEES.position.caveat;
+
+// --- Onglets de sélection de métrique --------------------------------------
+const onglets = document.getElementById("onglets");
+Object.entries(METRIQUES).forEach(([cle, conf]) => {
+  const bouton = document.createElement("button");
+  bouton.textContent = conf.titre;
+  bouton.setAttribute("role", "tab");
+  bouton.onclick = () => { metriqueChoisie = cle; dessinerTout(); };
+  bouton.dataset.cle = cle;
+  onglets.appendChild(bouton);
+});
+
+// --- Fonctions de conversion données -> coordonnées du dessin ---------------
+function echelleX(jour) {
+  return MARGE.gauche + (jour / jourMax) * largeurTrace;
+}
+function fabriquerEchelleY(min, max) {
+  // On ajoute une marge de 6 % en haut et en bas pour que les courbes ne
+  // touchent pas les bords du cadre.
+  const marge = (max - min) * 0.06 || 1;
+  const bas = min - marge, haut = max + marge;
+  return v => MARGE.haut + (1 - (v - bas) / (haut - bas)) * hauteurTrace;
+}
+
+function bornesMetrique(index) {
+  let min = Infinity, max = -Infinity;
+  Object.values(DONNEES.cycles).forEach(cycle => {
+    cycle.points.forEach(p => {
+      const v = p[index];
+      if (v === null) return;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    });
+  });
+  return [min, max];
+}
+
+function cheminDepuisPoints(points, index, echelleY) {
+  let d = "", enCours = false;
+  points.forEach(p => {
+    const v = p[index];
+    if (v === null) { enCours = false; return; }
+    const x = echelleX(p[0]).toFixed(1), y = echelleY(v).toFixed(1);
+    d += (enCours ? "L" : "M") + x + " " + y + " ";
+    enCours = true;
+  });
+  return d.trim();
+}
+
+// --- Dessin du graphique ---------------------------------------------------
+function dessinerGraphique() {
+  const conf = METRIQUES[metriqueChoisie];
+  const [min, max] = bornesMetrique(conf.index);
+  const echelleY = fabriquerEchelleY(min, max);
+  const svg = document.getElementById("graphique");
+  const parties = [];
+
+  // Bande min-max des cycles précédents : rend la dispersion visible partout.
+  const enveloppe = DONNEES.envelope[metriqueChoisie];
+  if (enveloppe && enveloppe.length) {
+    let haut = "", bas = "";
+    enveloppe.forEach((e, i) => {
+      haut += (i ? "L" : "M") + echelleX(e[0]).toFixed(1) + " " + echelleY(e[3]).toFixed(1) + " ";
+    });
+    for (let i = enveloppe.length - 1; i >= 0; i--) {
+      const e = enveloppe[i];
+      bas += "L" + echelleX(e[0]).toFixed(1) + " " + echelleY(e[1]).toFixed(1) + " ";
+    }
+    parties.push(`<path class="bande-historique" d="${haut}${bas}Z"></path>`);
+    // Médiane en pointillés
+    let med = "";
+    enveloppe.forEach((e, i) => {
+      med += (i ? "L" : "M") + echelleX(e[0]).toFixed(1) + " " + echelleY(e[2]).toFixed(1) + " ";
+    });
+    parties.push(`<path class="ligne-mediane" d="${med.trim()}"></path>`);
+  }
+
+  // Graduations verticales (axe des valeurs)
+  const nbGraduations = 5;
+  for (let i = 0; i <= nbGraduations; i++) {
+    const v = min + (max - min) * (i / nbGraduations);
+    const y = echelleY(v).toFixed(1);
+    parties.push(`<line class="axe" x1="${MARGE.gauche}" y1="${y}" x2="${LARGEUR - MARGE.droite}" y2="${y}" opacity="0.45"></line>`);
+    parties.push(`<text class="graduation" x="${MARGE.gauche - 8}" y="${y}" text-anchor="end" dominant-baseline="middle">${conf.format(v)}</text>`);
+  }
+
+  // Graduations horizontales (axe du temps, en jours après le halving)
+  for (let jour = 0; jour <= jourMax; jour += 200) {
+    const x = echelleX(jour).toFixed(1);
+    parties.push(`<line class="axe" x1="${x}" y1="${HAUTEUR - MARGE.bas}" x2="${x}" y2="${HAUTEUR - MARGE.bas + 5}"></line>`);
+    parties.push(`<text class="graduation" x="${x}" y="${HAUTEUR - MARGE.bas + 18}" text-anchor="middle">${jour}</text>`);
+  }
+  parties.push(`<line class="axe" x1="${MARGE.gauche}" y1="${HAUTEUR - MARGE.bas}" x2="${LARGEUR - MARGE.droite}" y2="${HAUTEUR - MARGE.bas}"></line>`);
+  parties.push(`<text class="titre-axe" x="${MARGE.gauche + largeurTrace / 2}" y="${HAUTEUR - 8}" text-anchor="middle">Jours écoulés depuis le halving</text>`);
+  parties.push(`<text class="titre-axe" transform="rotate(-90)" x="${-(MARGE.haut + hauteurTrace / 2)}" y="14" text-anchor="middle">${conf.axe}</text>`);
+
+  // Courbes des cycles précédents, puis du cycle en cours par-dessus.
+  DONNEES.reference_cycle_numbers.forEach(n => {
+    const d = cheminDepuisPoints(DONNEES.cycles[n].points, conf.index, echelleY);
+    parties.push(`<path class="ligne-historique" d="${d}"></path>`);
+  });
+  parties.push(`<path class="ligne-actuelle" d="${cheminDepuisPoints(cycleActuel.points, conf.index, echelleY)}"></path>`);
+
+  // Point marquant la position d'aujourd'hui.
+  const dernier = cycleActuel.points[cycleActuel.points.length - 1];
+  if (dernier[conf.index] !== null) {
+    parties.push(`<circle class="point-actuel" cx="${echelleX(dernier[0]).toFixed(1)}" cy="${echelleY(dernier[conf.index]).toFixed(1)}" r="5"></circle>`);
+  }
+
+  parties.push(`<line class="curseur" id="curseur" x1="0" y1="${MARGE.haut}" x2="0" y2="${HAUTEUR - MARGE.bas}" style="display:none"></line>`);
+
+  svg.innerHTML = parties.join("\n");
+  svg.onmousemove = evenement => survol(evenement, svg);
+  svg.onmouseleave = () => {
+    document.getElementById("curseur").style.display = "none";
+    document.getElementById("infobulle").textContent = "Survolez le graphique pour lire les valeurs jour par jour.";
+  };
+}
+
+// --- Lecture des valeurs au survol -----------------------------------------
+function valeurAuJour(points, jour, index) {
+  // Recherche simple du point le plus proche du jour visé.
+  let meilleur = null, ecartMin = Infinity;
+  points.forEach(p => {
+    const ecart = Math.abs(p[0] - jour);
+    if (ecart < ecartMin) { ecartMin = ecart; meilleur = p; }
+  });
+  return meilleur && ecartMin <= 3 ? meilleur[index] : null;
+}
+
+function survol(evenement, svg) {
+  const conf = METRIQUES[metriqueChoisie];
+  const boite = svg.getBoundingClientRect();
+  const xPixel = (evenement.clientX - boite.left) / boite.width * LARGEUR;
+  if (xPixel < MARGE.gauche || xPixel > LARGEUR - MARGE.droite) return;
+
+  const jour = Math.round((xPixel - MARGE.gauche) / largeurTrace * jourMax);
+  const curseur = document.getElementById("curseur");
+  curseur.setAttribute("x1", xPixel.toFixed(1));
+  curseur.setAttribute("x2", xPixel.toFixed(1));
+  curseur.style.display = "";
+
+  const morceaux = [`Jour ${jour} :`];
+  [...DONNEES.reference_cycle_numbers, numeroActuel].forEach(n => {
+    const v = valeurAuJour(DONNEES.cycles[n].points, jour, conf.index);
+    morceaux.push(`${DONNEES.cycles[n].label} ${v === null ? "—" : conf.format(v)}`);
+  });
+  document.getElementById("infobulle").textContent = morceaux.join("  ·  ");
+}
+
+// --- Tableau récapitulatif --------------------------------------------------
+function dessinerTableau() {
+  const lignes = [`<tr><th>Métrique</th><th>Aujourd'hui</th><th>Cycles précédents au même jour (min → max)</th><th>Médiane</th><th>Situation</th></tr>`];
+
+  Object.entries(METRIQUES).forEach(([cle, conf]) => {
+    const p = DONNEES.position.metrics[cle];
+    if (!p) return;
+    let situation;
+    if (p.current_value > p.historical_max) situation = "au-dessus des 3 cycles";
+    else if (p.current_value < p.historical_min) situation = "en dessous des 3 cycles";
+    else situation = "dans la fourchette";
+
+    lignes.push(`<tr>
+      <td>${conf.titre}</td>
+      <td class="valeur-actuelle">${conf.format(p.current_value)}</td>
+      <td>${conf.format(p.historical_min)} → ${conf.format(p.historical_max)}</td>
+      <td>${conf.format(p.historical_median)}</td>
+      <td>${situation}</td>
+    </tr>`);
+  });
+
+  document.getElementById("tableau").innerHTML = lignes.join("");
+}
+
+// --- Texte de lecture, volontairement descriptif et non prédictif -----------
+function dessinerLecture() {
+  const conf = METRIQUES[metriqueChoisie];
+  const p = DONNEES.position.metrics[metriqueChoisie];
+  const bloc = document.getElementById("lecture");
+  if (!p) { bloc.textContent = ""; return; }
+
+  let situation;
+  if (p.current_value > p.historical_max) {
+    situation = `au-dessus des trois cycles précédents observés au même stade (${conf.format(p.historical_min)} → ${conf.format(p.historical_max)})`;
+  } else if (p.current_value < p.historical_min) {
+    situation = `en dessous des trois cycles précédents observés au même stade (${conf.format(p.historical_min)} → ${conf.format(p.historical_max)})`;
+  } else {
+    situation = `dans la fourchette des trois cycles précédents au même stade (${conf.format(p.historical_min)} → ${conf.format(p.historical_max)})`;
+  }
+
+  bloc.innerHTML = `
+    <p><strong>${conf.titre}</strong> — ${conf.explication}</p>
+    <p>Au jour ${jourActuel} après le halving, la valeur actuelle
+    (<strong>${conf.format(p.current_value)}</strong>) se situe ${situation}.</p>
+    <p style="color: var(--texte-doux)">Avec seulement trois cycles de référence, une
+    « fourchette » ne décrit que trois trajectoires passées : elle ne délimite pas ce qui
+    est possible. Un percentile calculé sur trois valeurs ne peut d'ailleurs valoir que
+    0, 33, 67 ou 100 % — c'est pourquoi cette page affiche la fourchette plutôt qu'un
+    score unique. Ce constat est une description du passé, pas une anticipation.</p>
+  `;
+}
+
+function dessinerTout() {
+  [...onglets.children].forEach(b => {
+    b.setAttribute("aria-selected", b.dataset.cle === metriqueChoisie);
+  });
+  dessinerGraphique();
+  dessinerTableau();
+  dessinerLecture();
+}
+
+dessinerTout();
+</script>
+
+</body>
+</html>
