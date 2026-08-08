@@ -1,0 +1,57 @@
+# Actualisation quotidienne des données Bitcoin.
+#
+# Ce fichier est lu par GitHub, pas par ta machine : il ne sert à rien tant que
+# le projet n'est pas publié sur GitHub. Une fois publié, GitHub exécute ces
+# étapes tout seul, chaque jour, gratuitement.
+
+name: Mise à jour quotidienne des données
+
+on:
+  schedule:
+    # 06h30 UTC chaque jour. Coin Metrics ne consolide une journée qu'une fois
+    # celle-ci terminée : lancer trop tôt ne récupérerait rien de plus.
+    # Attention, l'heure des tâches planifiées GitHub n'est pas garantie à la
+    # minute près, un retard de quelques dizaines de minutes est normal.
+    - cron: "30 6 * * *"
+  # Permet aussi de lancer l'actualisation à la main depuis l'onglet Actions,
+  # sans attendre le lendemain.
+  workflow_dispatch:
+
+# Autorise le robot à réécrire les fichiers de données dans le dépôt.
+permissions:
+  contents: write
+
+jobs:
+  actualiser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le code du dépôt
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+        # Aucune dépendance à installer : les scripts n'utilisent que la
+        # bibliothèque standard de Python.
+
+      - name: Télécharger les données et tout recalculer
+        run: |
+          python scripts/fetch_btc_data.py
+          python scripts/compute_metrics.py
+          python scripts/cycle_engine.py
+          python scripts/build_web_data.py
+
+      - name: Enregistrer les fichiers mis à jour
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data docs
+          # S'il n'y a rien de nouveau (journée pas encore publiée), on s'arrête
+          # sans erreur plutôt que de faire échouer l'exécution.
+          if git diff --staged --quiet; then
+            echo "Aucune donnée nouvelle aujourd'hui."
+          else
+            git commit -m "Actualisation automatique des données"
+            git push
+          fi

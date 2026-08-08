@@ -53,6 +53,29 @@
   h2 { font-size: 1.05rem; margin: 32px 0 10px; }
   .sous-titre { color: var(--texte-doux); margin: 0 0 20px; font-size: 0.92rem; }
 
+  /* Bandeau de fraîcheur des données. En temps normal il reste discret ;
+     il ne se met en évidence que si les données ont cessé d'être actualisées,
+     puisque c'est le seul moment où il a quelque chose à apprendre. */
+  .fraicheur {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    margin: 10px 0 16px;
+    padding: 9px 13px;
+    border-radius: 8px;
+    border: 1px solid var(--bordure);
+    background: var(--fond-bloc);
+    font-size: 0.87rem;
+  }
+  .fraicheur .jour { font-weight: 600; }
+  .fraicheur .secondaire { color: var(--texte-doux); font-size: 0.83rem; }
+  .fraicheur.perimee {
+    border-color: var(--alerte-bordure);
+    background: var(--alerte-fond);
+  }
+  .fraicheur.perimee .alerte { font-weight: 600; }
+
   /* Le rappel d'incertitude reste visible en permanence : c'est une règle
      du projet, pas une décoration. */
   .avertissement {
@@ -265,6 +288,9 @@
 <body>
 
 <h1>Cycles Bitcoin — où en sommes-nous ?</h1>
+
+<div class="fraicheur" id="fraicheur"></div>
+
 <p class="sous-titre" id="sous-titre"></p>
 
 <div class="avertissement">
@@ -334,7 +360,16 @@
   n'est pas une prévision, et il ne doit pas être lu comme telle.</p>
 </footer>
 
-<script src="data.js"></script>
+<script>
+// Chargement des données avec un paramètre qui change à chaque ouverture.
+// Sans lui, le navigateur peut resservir une version gardée en mémoire et
+// afficher les chiffres de la veille alors que l'actualisation quotidienne a
+// déjà eu lieu — exactement le genre de panne silencieuse qu'on veut éviter.
+// document.write est utilisé volontairement : pendant la lecture initiale de
+// la page, il insère le script de façon synchrone, si bien que le code
+// ci-dessous trouve bien les données déjà chargées.
+document.write('<scr' + 'ipt src="data.js?t=' + Date.now() + '"></scr' + 'ipt>');
+</script>
 <script>
 // ---------------------------------------------------------------------------
 // Configuration des trois métriques affichables.
@@ -382,6 +417,12 @@ const hauteurTrace = HAUTEUR - MARGE.haut - MARGE.bas;
 // plus prudent, pas moins.
 const FENETRE_LISSAGE = 10;
 
+// Outils de date, utilisés à la fois par le bandeau de fraîcheur en haut de
+// page et par les calculs de creux plus bas : définis ici pour être
+// disponibles dans les deux cas.
+const MS_PAR_JOUR = 86400000;
+const enDate = texte => new Date(texte + "T00:00:00Z");
+
 const numeroActuel = DONNEES.current_cycle_number;
 const cycleActuel = DONNEES.cycles[numeroActuel];
 const jourActuel = DONNEES.position.current_cycle.days_since_halving;
@@ -403,9 +444,50 @@ const jourMax = Math.max(
   ...Object.values(DONNEES.cycles).map(c => c.points[c.points.length - 1][0])
 );
 
+// --- Fraîcheur des données --------------------------------------------------
+// La page ne connaît pas la date du jour côté données : elle affiche ce qui a
+// été calculé lors de la dernière actualisation. On compare donc à l'horloge
+// du navigateur pour repérer des données qui auraient cessé d'être mises à
+// jour, sans quoi la page continuerait d'afficher « dans 61 jours » des mois
+// plus tard sans rien signaler.
+function formaterDateFr(texte) {
+  return new Date(texte + "T00:00:00Z").toLocaleDateString("fr-FR", {
+    day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
+  });
+}
+
+function dessinerFraicheur() {
+  const dernierJour = DONNEES.dernier_jour_donnees || DONNEES.position.generated_date;
+  const bloc = document.getElementById("fraicheur");
+
+  const maintenant = new Date();
+  const aujourdhuiUTC = Date.UTC(
+    maintenant.getUTCFullYear(), maintenant.getUTCMonth(), maintenant.getUTCDate());
+  const age = Math.floor((aujourdhuiUTC - new Date(dernierJour + "T00:00:00Z")) / MS_PAR_JOUR);
+
+  // Une journée n'est consolidée qu'une fois terminée : un décalage d'un jour
+  // est le fonctionnement normal, pas un incident. On n'alerte qu'au-delà.
+  const perimee = age > 2;
+  bloc.className = "fraicheur" + (perimee ? " perimee" : "");
+
+  const morceaux = [
+    `<span>Données jusqu'au <span class="jour">${formaterDateFr(dernierJour)}</span></span>`,
+  ];
+  if (DONNEES.actualise_le) {
+    morceaux.push(`<span class="secondaire">actualisées le ${DONNEES.actualise_le}</span>`);
+  }
+  if (perimee) {
+    morceaux.push(`<span class="alerte">⚠ ${age} jours de retard — l'actualisation
+      automatique ne fonctionne peut-être plus. Les écarts en jours affichés plus
+      bas sont comptés depuis cette date, et sont donc faux d'autant.</span>`);
+  }
+  bloc.innerHTML = morceaux.join("");
+}
+
 // --- Textes d'en-tête ------------------------------------------------------
+dessinerFraicheur();
 document.getElementById("sous-titre").textContent =
-  `Données au ${DONNEES.position.generated_date} — jour ${jourActuel} après le halving de 2024.`;
+  `Jour ${jourActuel} après le halving de 2024.`;
 document.getElementById("texte-avertissement").textContent = DONNEES.position.caveat;
 
 // --- Boutons de sélection de la métrique -----------------------------------
@@ -784,9 +866,6 @@ function creuxAffiches() {
     })
     .filter(Boolean);
 }
-
-const MS_PAR_JOUR = 86400000;
-const enDate = texte => new Date(texte + "T00:00:00Z");
 
 // Les différentes façons de calculer un repère de creux. Aucune n'est plus
 // « vraie » que les autres : avec trois cycles, le choix de la méthode pèse

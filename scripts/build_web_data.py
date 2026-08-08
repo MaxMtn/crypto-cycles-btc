@@ -13,6 +13,7 @@ Ne fait aucun appel réseau.
 
 import csv
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -90,8 +91,17 @@ def main():
     with open(POSITION_FILE) as f:
         position = json.load(f)
 
+    # Deux dates différentes, et la distinction compte : la première dit
+    # jusqu'où vont les données, la seconde quand on est allé les chercher.
+    # Si l'actualisation automatique tombe en panne, la seconde cesse
+    # d'avancer — c'est ce qui permet à la page de s'en apercevoir.
+    dernier_jour = max(row["date"] for rows in cycles.values() for row in rows)
+    actualise_le = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
     payload = {
         "cycles": series,
+        "dernier_jour_donnees": dernier_jour,
+        "actualise_le": actualise_le,
         "current_cycle_number": current_number,
         "reference_cycle_numbers": reference_numbers,
         "position": position,
@@ -107,6 +117,7 @@ def main():
 
     size_ko = OUTPUT_FILE.stat().st_size / 1024
     print(f"Terminé : {OUTPUT_FILE} ({size_ko:.0f} Ko)")
+    print(f"  Données jusqu'au {dernier_jour}, actualisées le {actualise_le}")
     for n, data in sorted(series.items()):
         print(f"  {data['label']} : {len(data['points'])} jours")
 
