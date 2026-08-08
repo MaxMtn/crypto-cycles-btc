@@ -1009,11 +1009,30 @@ Object.entries(METHODES_REPERE).forEach(([cle, conf]) => {
   boutonsMethodes.appendChild(bouton);
 });
 
+// Part du cycle au-delà de laquelle des creux ne décrivent plus « la même
+// phase ». Un cycle dure environ 1400 jours ; si les creux passés s'étalent sur
+// plus d'un quart de cette durée, ils ne se produisent pas au même moment du
+// cycle et en tirer un repère n'a plus de sens. XRP illustre le cas : creux au
+// jour 1342 d'un cycle puis au jour 52 du suivant, tous deux causés par le
+// krach de mars 2020, que le découpage en cycles place de part et d'autre
+// d'un halving.
+const DISPERSION_MAXIMALE = 0.25;
+
+function creuxTropDisperses() {
+  const jours = joursCreuxAffiches();
+  if (jours.length < 2) return false;
+  const etendue = jours[jours.length - 1] - jours[0];
+  return etendue > jourMax * DISPERSION_MAXIMALE;
+}
+
 function jourRepereTheorique(methode = methodeChoisie) {
   const creux = creuxAffiches();
-  if (creux.length < 2) return null;
+  if (creux.length < 2 || creuxTropDisperses()) return null;
   const valeur = METHODES_REPERE[methode].calculer(creux);
-  return valeur === null || !isFinite(valeur) ? null : Math.round(valeur);
+  if (valeur === null || !isFinite(valeur)) return null;
+  // Un repère antérieur au début du cycle en cours ne désigne rien : il
+  // signale seulement que la méthode ne s'applique pas à cet actif.
+  return valeur < 0 ? null : Math.round(valeur);
 }
 
 // Date réelle correspondant au Nième jour d'un cycle.
@@ -1314,6 +1333,27 @@ function dessinerFenetreCreux() {
   const bloc = document.getElementById("fenetre-creux");
   const jours = joursCreuxAffiches();
 
+  // Creux trop dispersés : ils existent, mais ne se produisent pas au même
+  // moment du cycle. Un repère calculé dessus n'aurait aucun sens.
+  if (jours.length >= 2 && creuxTropDisperses()) {
+    document.getElementById("repere-theorique").innerHTML = "";
+    document.getElementById("comparaison-methodes").innerHTML = "";
+    document.getElementById("note-methodes").innerHTML = "";
+
+    const etendue = jours[jours.length - 1] - jours[0];
+    bloc.innerHTML = `<p>Aucun repère n'est calculé pour ${ACTIF.nom} : ses
+      creux passés tombent aux jours ${jours.join(" et ")} du cycle, soit
+      <strong>${etendue} jours d'écart</strong> sur un cycle qui en compte
+      environ ${jourMax}. Ils ne décrivent donc pas la même phase, et en tirer
+      une moyenne reviendrait à mélanger des moments sans rapport.</p>
+      <p style="color: var(--texte-doux)">Cela vient du découpage : plusieurs
+      altcoins ont touché leur point bas lors du krach de mars 2020, que
+      l'alignement sur les halvings du Bitcoin place tantôt à la fin d'un cycle,
+      tantôt au début du suivant. Le tableau des creux ci-dessus reste
+      consultable — c'est seulement la projection qui n'a pas lieu d'être.</p>`;
+    return;
+  }
+
   if (jours.length < 2) {
     // Tout est effacé, et non laissé tel quel : afficher une date calculée sur
     // des cycles qui ne sont plus affichés serait trompeur.
@@ -1348,6 +1388,20 @@ function dessinerFenetreCreux() {
   const premier = jours[0];
   const dernier = jours[jours.length - 1];
   const median = jourRepereTheorique();
+
+  // Filet de sécurité : la méthode choisie peut ne rien produire d'exploitable
+  // (résultat antérieur au début du cycle, par exemple) alors que d'autres y
+  // parviennent. Mieux vaut le dire que d'afficher une date calculée à partir
+  // d'une valeur absente.
+  if (median === null) {
+    document.getElementById("repere-theorique").innerHTML = "";
+    document.getElementById("comparaison-methodes").innerHTML = "";
+    document.getElementById("note-methodes").innerHTML = "";
+    bloc.innerHTML = `<p>La méthode « ${METHODES_REPERE[methodeChoisie].titre} »
+      ne donne pas de résultat exploitable pour ${ACTIF.nom} : elle situe le
+      creux avant même le début du cycle en cours. Essayez une autre méthode.</p>`;
+    return;
+  }
   const quand = jour => {
     const ecart = jour - jourActuel;
     if (ecart === 0) return "aujourd'hui";

@@ -29,6 +29,32 @@ ACTIFS = {
         # de référence, car incomplet.
         "debut_donnees": "2015-08-08",
     },
+    # Altcoins retenus le 2026-08-08. Critère : disposer des quatre métriques
+    # ET couvrir entièrement au moins deux cycles BTC (2016 et 2020). Un seul
+    # cycle de référence ne permet aucune fourchette.
+    # Écartés pour un seul cycle complet : ADA, BCH, LINK, ETC.
+    # Écarté faute de MVRV : XMR.
+    # Disponibles mais non retenus car marginaux aujourd'hui : DASH, DCR, DGB, XEM.
+    "ltc": {
+        "nom": "Litecoin",
+        "symbole": "LTC",
+        "debut_donnees": "2013-04-01",
+    },
+    "xrp": {
+        "nom": "XRP",
+        "symbole": "XRP",
+        "debut_donnees": "2014-08-15",
+    },
+    "doge": {
+        "nom": "Dogecoin",
+        "symbole": "DOGE",
+        "debut_donnees": "2014-01-23",
+    },
+    "xlm": {
+        "nom": "Stellar",
+        "symbole": "XLM",
+        "debut_donnees": "2015-09-30",
+    },
 }
 
 # Les quatre métriques récupérées pour chaque actif. La capitalisation réalisée

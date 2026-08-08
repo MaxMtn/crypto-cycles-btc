@@ -1,0 +1,61 @@
+{
+  "asset": "ltc",
+  "asset_name": "Litecoin",
+  "generated_date": "2026-08-07",
+  "current_cycle": {
+    "halving_number": 4,
+    "days_since_halving": 839
+  },
+  "reference_cycles_used": [
+    2,
+    3
+  ],
+  "reference_cycles_excluded": [
+    1
+  ],
+  "caveat": "Comparaison basée sur seulement 2 cycles historiques complets : chaque écart peut refléter le hasard autant qu'un signal réel. Le cycle actuel diffère structurellement des précédents (ETF spot, flux institutionnels, contexte de taux) : ne pas traiter l'historique comme un gabarit fiable. Ceci n'est pas une prédiction. Le cycle 1 est écarté de la comparaison : l'historique de Litecoin commence le 2013-04-01 et ne les couvre pas entièrement. Litecoin n'a pas de halving : son cycle est ici aligné sur les halvings du Bitcoin, en supposant que celui-ci pilote le reste du marché. C'est une hypothèse de lecture, pas un fait.",
+  "metrics": {
+    "mvrv": {
+      "current_value": 0.5977,
+      "historical_values_same_day": {
+        "cycle_2": 0.4782,
+        "cycle_3": 0.5673
+      },
+      "historical_min": 0.4782,
+      "historical_median": 0.5228,
+      "historical_max": 0.5673,
+      "rank_percentile_exact_day": 100.0,
+      "rank_percentile_windowed": 72.4,
+      "windowed_sample_size": 58,
+      "window_days": 14
+    },
+    "mayer_multiple": {
+      "current_value": 0.8732,
+      "historical_values_same_day": {
+        "cycle_2": 0.5757,
+        "cycle_3": 0.6577
+      },
+      "historical_min": 0.5757,
+      "historical_median": 0.6167,
+      "historical_max": 0.6577,
+      "rank_percentile_exact_day": 100.0,
+      "rank_percentile_windowed": 100.0,
+      "windowed_sample_size": 58,
+      "window_days": 14
+    },
+    "drawdown_pct": {
+      "current_value": -88.1871,
+      "historical_values_same_day": {
+        "cycle_2": -85.6314,
+        "cycle_3": -86.0034
+      },
+      "historical_min": -86.0034,
+      "historical_median": -85.8174,
+      "historical_max": -85.6314,
+      "rank_percentile_exact_day": 0.0,
+      "rank_percentile_windowed": 0.0,
+      "windowed_sample_size": 58,
+      "window_days": 14
+    }
+  }
+}

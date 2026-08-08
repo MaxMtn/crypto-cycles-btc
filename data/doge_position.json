@@ -1,0 +1,61 @@
+{
+  "asset": "doge",
+  "asset_name": "Dogecoin",
+  "generated_date": "2026-08-07",
+  "current_cycle": {
+    "halving_number": 4,
+    "days_since_halving": 839
+  },
+  "reference_cycles_used": [
+    2,
+    3
+  ],
+  "reference_cycles_excluded": [
+    1
+  ],
+  "caveat": "Comparaison basée sur seulement 2 cycles historiques complets : chaque écart peut refléter le hasard autant qu'un signal réel. Le cycle actuel diffère structurellement des précédents (ETF spot, flux institutionnels, contexte de taux) : ne pas traiter l'historique comme un gabarit fiable. Ceci n'est pas une prédiction. Le cycle 1 est écarté de la comparaison : l'historique de Dogecoin commence le 2014-01-23 et ne les couvre pas entièrement. Dogecoin n'a pas de halving : son cycle est ici aligné sur les halvings du Bitcoin, en supposant que celui-ci pilote le reste du marché. C'est une hypothèse de lecture, pas un fait.",
+  "metrics": {
+    "mvrv": {
+      "current_value": 0.5842,
+      "historical_values_same_day": {
+        "cycle_2": 1.058,
+        "cycle_3": 0.6813
+      },
+      "historical_min": 0.6813,
+      "historical_median": 0.8697,
+      "historical_max": 1.058,
+      "rank_percentile_exact_day": 0.0,
+      "rank_percentile_windowed": 0.0,
+      "windowed_sample_size": 58,
+      "window_days": 14
+    },
+    "mayer_multiple": {
+      "current_value": 0.7522,
+      "historical_values_same_day": {
+        "cycle_2": 0.9888,
+        "cycle_3": 0.6238
+      },
+      "historical_min": 0.6238,
+      "historical_median": 0.8063,
+      "historical_max": 0.9888,
+      "rank_percentile_exact_day": 50.0,
+      "rank_percentile_windowed": 44.8,
+      "windowed_sample_size": 58,
+      "window_days": 14
+    },
+    "drawdown_pct": {
+      "current_value": -89.8364,
+      "historical_values_same_day": {
+        "cycle_2": -76.2372,
+        "cycle_3": -90.9416
+      },
+      "historical_min": -90.9416,
+      "historical_median": -83.5894,
+      "historical_max": -76.2372,
+      "rank_percentile_exact_day": 50.0,
+      "rank_percentile_windowed": 41.4,
+      "windowed_sample_size": 58,
+      "window_days": 14
+    }
+  }
+}

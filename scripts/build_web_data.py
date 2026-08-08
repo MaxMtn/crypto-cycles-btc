@@ -50,7 +50,10 @@ def load_cycles(actif):
 
 
 def build_series(cycles):
-    """Pour chaque cycle : liste de points [jour, mvrv, mayer, drawdown, prix]."""
+    """Pour chaque cycle : liste de points [jour, mvrv, mayer, drawdown].
+
+    Le prix n'est pas embarqué : la page ne l'affiche nulle part et il pesait
+    près d'un cinquième du fichier."""
     series = {}
     for n, rows in cycles.items():
         points = []
@@ -58,13 +61,11 @@ def build_series(cycles):
             mvrv = to_float(row["mvrv"])
             mayer = to_float(row["mayer_multiple"])
             drawdown = to_float(row["drawdown_pct"])
-            price = to_float(row["price_usd"])
             points.append([
                 int(row["days_since_halving"]),
                 round(mvrv, 3) if mvrv is not None else None,
                 round(mayer, 3) if mayer is not None else None,
                 round(drawdown, 2) if drawdown is not None else None,
-                round(price, 2) if price is not None else None,
             ])
         series[n] = {
             "label": HALVING_LABELS.get(n, f"Cycle {n}"),
