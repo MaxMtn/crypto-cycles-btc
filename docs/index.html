@@ -847,7 +847,11 @@ const METHODES_REPERE = {
   },
 };
 
-let methodeChoisie = "mediane";
+// Méthode retenue par défaut : l'intervalle entre creux successifs est la
+// seule grandeur réellement stable du jeu de données (1431 puis 1425 jours),
+// là où le jour depuis le halving se décale surtout parce que les halvings
+// s'espacent (1319, 1402, 1440 jours).
+let methodeChoisie = "intervalle";
 
 // --- Boutons de choix de la méthode du repère théorique ---------------------
 Object.entries(METHODES_REPERE).forEach(([cle, conf]) => {

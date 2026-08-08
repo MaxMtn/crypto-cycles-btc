@@ -101,14 +101,23 @@ L'interface doit rendre l'incertitude visible en permanence :
 - **Interdits** : prédiction de date de sommet, prix cible, formulation
   déterministe (« le sommet sera en… »).
 - **Exception décidée le 2026-08-08** : la page affiche un « repère théorique »
-  de date de creux, obtenu par médiane des jours de creux des cycles affichés.
-  L'utilisateur l'a demandé après avoir pris connaissance de l'objection (avec
-  n = 3, la médiane n'estime rien et la largeur de l'intervalle mesure surtout
-  le manque de cycles). Conditions à préserver : titre annonçant explicitement
-  le caractère théorique, méthode de calcul affichée à côté du chiffre,
-  encadré visuellement distinct du reste (pointillés), et mention que le creux
-  du cycle en cours est peut-être déjà passé. Ne pas étendre ce procédé à une
-  date de sommet ni à un prix cible, qui restent interdits.
+  de date de creux. L'utilisateur l'a demandé après avoir pris connaissance de
+  l'objection (avec n = 3, aucune méthode n'estime quoi que ce soit de solide,
+  et la largeur de l'intervalle mesure surtout le manque de cycles).
+  Conditions à préserver : titre annonçant explicitement le caractère
+  théorique, méthode de calcul affichée à côté du chiffre, encadré visuellement
+  distinct du reste (pointillés), tableau comparant en permanence les cinq
+  méthodes — leurs résultats s'étalent sur 135 jours à données identiques, ce
+  qui est le vrai enseignement — et mention que le creux du cycle en cours est
+  peut-être déjà passé. Ne pas étendre ce procédé à une date de sommet ni à un
+  prix cible, qui restent interdits.
+- **Méthode retenue par défaut : « intervalle entre creux »**, choisie par
+  l'utilisateur le 2026-08-08. Motif : l'intervalle calendaire entre creux
+  successifs est la seule grandeur stable du jeu de données (1431 puis 1425
+  jours), alors que le jour de creux compté depuis le halving se décale
+  surtout parce que les halvings s'espacent (1319, 1402, 1440 jours) — le
+  décalage apparent tient donc au point de référence plus qu'au marché. Ne pas
+  revenir à la médiane sans raison explicite.
 - Backtests : attention au biais de look-ahead (certaines métriques sont révisées
   a posteriori) et, dès qu'on sortira de BTC, au biais de survivance sur les
   altcoins.
