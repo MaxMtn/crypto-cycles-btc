@@ -197,6 +197,7 @@
   th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--bordure); }
   th { color: var(--texte-doux); font-weight: 600; }
   td.valeur-actuelle { color: var(--actuel); font-weight: 600; }
+  tr.methode-active td { color: var(--actuel); font-weight: 600; }
 
   .lecture {
     background: var(--fond-bloc);
@@ -309,7 +310,17 @@
 <p class="note" id="note-creux"></p>
 
 <h2>Quand les cycles précédents ont-ils touché leur creux ?</h2>
+
+<div class="groupe-reglage" style="margin-bottom: 4px">
+  <span class="intitule">Méthode de calcul du repère</span>
+  <div class="boutons onglets" id="methodes"></div>
+</div>
+
 <div class="repere-theorique" id="repere-theorique"></div>
+
+<table id="comparaison-methodes"></table>
+<p class="note" id="note-methodes"></p>
+
 <div class="lecture" id="fenetre-creux"></div>
 
 <footer>
@@ -438,6 +449,10 @@ lienAucun.className = "lien-rapide";
 lienAucun.textContent = "tout masquer";
 lienAucun.onclick = () => { cyclesAffiches = new Set(); dessinerTout(); };
 bascules.appendChild(lienAucun);
+
+// Les boutons de choix de la méthode sont créés plus bas, une fois
+// METHODES_REPERE défini.
+const boutonsMethodes = document.getElementById("methodes");
 
 // --- Zoom et déplacement ----------------------------------------------------
 // "vue" est la tranche de jours actuellement visible. Tout le dessin en
@@ -758,19 +773,96 @@ function joursCreuxAffiches() {
     .sort((a, b) => a - b);
 }
 
-// Repère théorique : jour de creux obtenu à partir des cycles précédents.
-// La règle tient en une ligne, et c'est volontaire — elle doit rester lisible
-// et modifiable. Remplacer "mediane" par "moyenne" ci-dessous change le repère
-// et rien d'autre.
-const METHODE_REPERE = "mediane";
+// Creux des cycles affichés, en ordre chronologique (cycle le plus ancien en
+// premier), avec leur date réelle. L'ordre compte : les méthodes fondées sur
+// une tendance n'ont de sens que dans le sens du temps.
+function creuxAffiches() {
+  return cyclesSelectionnes()
+    .map(n => {
+      const creux = creuxDuCycle(n);
+      return creux ? { cycle: n, jour: creux[0], date: dateDuJour(n, creux[0]) } : null;
+    })
+    .filter(Boolean);
+}
 
-function jourRepereTheorique() {
-  const jours = joursCreuxAffiches();
-  if (jours.length < 2) return null;
-  const valeur = METHODE_REPERE === "moyenne"
-    ? jours.reduce((a, b) => a + b, 0) / jours.length
-    : mediane(jours);
-  return Math.round(valeur);
+const MS_PAR_JOUR = 86400000;
+const enDate = texte => new Date(texte + "T00:00:00Z");
+
+// Les différentes façons de calculer un repère de creux. Aucune n'est plus
+// « vraie » que les autres : avec trois cycles, le choix de la méthode pèse
+// plus lourd que les données elles-mêmes, ce que le tableau comparatif rend
+// visible. Chacune renvoie un jour du cycle en cours, ou null si le nombre de
+// cycles affichés ne permet pas de la calculer.
+const METHODES_REPERE = {
+  mediane: {
+    titre: "Médiane des jours de creux",
+    explication: "Le jour central des cycles affichés. Ne tient aucun compte de l'ordre chronologique : un décalage régulier d'un cycle à l'autre lui est invisible.",
+    calculer: creux => mediane(creux.map(c => c.jour)),
+  },
+  moyenne: {
+    titre: "Moyenne des jours de creux",
+    explication: "La moyenne simple. Comme la médiane, elle ignore l'ordre des cycles, mais elle est davantage tirée par les valeurs extrêmes.",
+    calculer: creux => creux.reduce((somme, c) => somme + c.jour, 0) / creux.length,
+  },
+  tendance: {
+    titre: "Tendance linéaire",
+    explication: "Une droite ajustée sur les jours de creux successifs, prolongée d'un cycle. Prend le décalage au sérieux, mais le suppose constant : ici les écarts observés sont de +112 puis +23 jours, que cette droite moyenne en +67 sans jamais coller à l'un ni à l'autre.",
+    calculer: creux => {
+      if (creux.length < 2) return null;
+      const xs = creux.map((_, i) => i + 1);
+      const ys = creux.map(c => c.jour);
+      const moyX = xs.reduce((a, b) => a + b, 0) / xs.length;
+      const moyY = ys.reduce((a, b) => a + b, 0) / ys.length;
+      let numerateur = 0, denominateur = 0;
+      xs.forEach((x, i) => {
+        numerateur += (x - moyX) * (ys[i] - moyY);
+        denominateur += (x - moyX) ** 2;
+      });
+      if (denominateur === 0) return null;
+      return moyY + (numerateur / denominateur) * (xs.length + 1 - moyX);
+    },
+  },
+  intervalle: {
+    titre: "Intervalle entre creux",
+    explication: "Ajoute au dernier creux l'intervalle calendaire moyen qui sépare les creux successifs. C'est la grandeur la plus régulière du jeu de données (1431 puis 1425 jours), là où le jour depuis le halving bouge beaucoup — parce que ce sont les halvings qui s'espacent, pas les creux qui dérivent.",
+    calculer: creux => {
+      if (creux.length < 2) return null;
+      const dates = creux.map(c => enDate(c.date));
+      let total = 0;
+      for (let i = 1; i < dates.length; i++) total += (dates[i] - dates[i - 1]) / MS_PAR_JOUR;
+      const intervalleMoyen = total / (dates.length - 1);
+      const projetee = new Date(dates[dates.length - 1].getTime() + intervalleMoyen * MS_PAR_JOUR);
+      return (projetee - enDate(DONNEES.cycles[numeroActuel].start_date)) / MS_PAR_JOUR;
+    },
+  },
+  dernier_ecart: {
+    titre: "Dernier creux + dernier écart",
+    explication: "Reporte sur le cycle en cours le seul dernier décalage observé. Le plus réactif, et donc le plus sensible au hasard d'une seule observation.",
+    calculer: creux => {
+      if (creux.length < 2) return null;
+      const dernier = creux[creux.length - 1];
+      const precedent = creux[creux.length - 2];
+      return dernier.jour + (dernier.jour - precedent.jour);
+    },
+  },
+};
+
+let methodeChoisie = "mediane";
+
+// --- Boutons de choix de la méthode du repère théorique ---------------------
+Object.entries(METHODES_REPERE).forEach(([cle, conf]) => {
+  const bouton = document.createElement("button");
+  bouton.textContent = conf.titre;
+  bouton.dataset.methode = cle;
+  bouton.onclick = () => { methodeChoisie = cle; dessinerTout(); };
+  boutonsMethodes.appendChild(bouton);
+});
+
+function jourRepereTheorique(methode = methodeChoisie) {
+  const creux = creuxAffiches();
+  if (creux.length < 2) return null;
+  const valeur = METHODES_REPERE[methode].calculer(creux);
+  return valeur === null || !isFinite(valeur) ? null : Math.round(valeur);
 }
 
 // Date réelle correspondant au Nième jour d'un cycle.
@@ -1068,9 +1160,11 @@ function dessinerFenetreCreux() {
   const jours = joursCreuxAffiches();
 
   if (jours.length < 2) {
-    // Le repère est effacé, et non laissé tel quel : afficher une date
-    // calculée sur des cycles qui ne sont plus affichés serait trompeur.
+    // Tout est effacé, et non laissé tel quel : afficher une date calculée sur
+    // des cycles qui ne sont plus affichés serait trompeur.
     document.getElementById("repere-theorique").innerHTML = "";
+    document.getElementById("comparaison-methodes").innerHTML = "";
+    document.getElementById("note-methodes").innerHTML = "";
     bloc.innerHTML = `<p>Affichez au moins deux cycles de référence pour situer
       leurs creux sur le calendrier du cycle en cours.</p>`;
     return;
@@ -1085,15 +1179,18 @@ function dessinerFenetreCreux() {
     return ecart < 0 ? `il y a ${-ecart} jours` : `dans ${ecart} jours`;
   };
 
+  const conf = METHODES_REPERE[methodeChoisie];
   document.getElementById("repere-theorique").innerHTML = `
     <span class="etiquette">Repère théorique — pas une prévision</span>
     <p class="chiffre">${dateDuJour(numeroActuel, median)}</p>
     <p class="detail">jour ${median} du cycle · ${quand(median)}</p>
-    <p class="methode">Calcul : ${METHODE_REPERE} des jours de creux des
-    ${jours.length} cycles affichés (${jours.join(", ")}). Aucune autre donnée
-    n'entre dans ce chiffre — ni prix, ni tendance, ni contexte de marché.
-    Changer les cycles affichés change ce repère.</p>
+    <p class="methode"><strong>${conf.titre}</strong> — ${conf.explication}
+    Calculé sur les ${jours.length} cycles affichés (creux aux jours
+    ${jours.join(", ")}). Ni prix, ni tendance de marché, ni contexte
+    n'entrent dans ce chiffre.</p>
   `;
+
+  dessinerComparaisonMethodes();
 
   bloc.innerHTML = `
     <p><strong>Les ${jours.length} cycles affichés ont touché leur creux entre le
@@ -1116,6 +1213,43 @@ function dessinerFenetreCreux() {
     cycles, pas une mesure d'incertitude. Le creux du cycle en cours peut se
     situer avant, après, ou être déjà passé — il l'est peut-être déjà, au
     jour ${creuxDuCycle(numeroActuel)[0]}.</p>
+  `;
+}
+
+// --- Comparaison des méthodes de calcul du repère ---------------------------
+// Afficher les cinq résultats côte à côte n'est pas un ornement : c'est ce qui
+// montre que, sur trois cycles, l'écart entre méthodes dépasse largement ce
+// que les données permettent de trancher.
+function dessinerComparaisonMethodes() {
+  const resultats = Object.entries(METHODES_REPERE)
+    .map(([cle, conf]) => ({ cle, titre: conf.titre, jour: jourRepereTheorique(cle) }))
+    .filter(r => r.jour !== null)
+    .sort((a, b) => a.jour - b.jour);
+
+  const lignes = [`<tr><th>Méthode</th><th>Jour</th><th>Date</th><th>Écart</th></tr>`];
+  resultats.forEach(r => {
+    const ecart = r.jour - jourActuel;
+    const quand = ecart === 0 ? "aujourd'hui"
+      : ecart < 0 ? `il y a ${-ecart} j` : `dans ${ecart} j`;
+    const active = r.cle === methodeChoisie;
+    lignes.push(`<tr class="${active ? "methode-active" : ""}">
+      <td>${r.titre}${active ? " ←" : ""}</td>
+      <td>jour ${r.jour}</td>
+      <td>${dateDuJour(numeroActuel, r.jour)}</td>
+      <td>${quand}</td>
+    </tr>`);
+  });
+  document.getElementById("comparaison-methodes").innerHTML = lignes.join("");
+
+  const etendue = resultats.length
+    ? resultats[resultats.length - 1].jour - resultats[0].jour
+    : 0;
+  document.getElementById("note-methodes").innerHTML = `
+    Ces méthodes s'appuient toutes sur les mêmes données et donnent des
+    résultats répartis sur <strong>${etendue} jours</strong>. Cet écart ne vient
+    pas du marché mais du choix de la méthode : avec trois cycles, il n'existe
+    aucun moyen de départager ces calculs, aucun ne pouvant être testé sur des
+    cycles qu'il n'aurait pas servi à construire.
   `;
 }
 
@@ -1144,6 +1278,9 @@ function dessinerTout() {
   });
   [...bascules.querySelectorAll(".bascule")].forEach(b => {
     b.setAttribute("aria-pressed", cyclesAffiches.has(Number(b.dataset.cycle)));
+  });
+  [...boutonsMethodes.children].forEach(b => {
+    b.setAttribute("aria-selected", b.dataset.methode === methodeChoisie);
   });
   dessinerDefinition();
   dessinerGraphique();
