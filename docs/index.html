@@ -189,8 +189,42 @@
   /* Ne viser que le graphique, et surtout pas « svg » en général : d'autres
      petites images vectorielles (la puce de la légende) seraient étirées
      à la largeur de la page. */
-  #graphique { display: block; width: 100%; height: auto; min-width: 560px; cursor: grab; }
+  /* pan-y : le navigateur garde le défilement vertical de la page, on récupère
+     le geste horizontal et le pincement pour piloter le graphique. */
+  #graphique {
+    display: block; width: 100%; height: auto; min-width: 560px;
+    cursor: grab; touch-action: pan-y;
+  }
   #graphique.en-deplacement { cursor: grabbing; }
+
+  /* --- Téléphones et petits écrans --------------------------------------- */
+  @media (max-width: 700px) {
+    body { padding: 16px 14px 36px; }
+    h1 { font-size: 1.25rem; }
+    h2 { font-size: 1rem; margin-top: 26px; }
+
+    /* Le graphique occupe toute la largeur disponible au lieu d'imposer un
+       défilement : mieux vaut un tracé un peu tassé qu'un tracé qu'on ne voit
+       qu'en faisant glisser. */
+    #graphique { min-width: 0; }
+    .cadre-graphique { padding: 4px; }
+
+    /* Le dessin est mis à l'échelle de l'écran : sans cela, les étiquettes des
+       axes deviendraient illisibles une fois réduites de 900 px à 350. */
+    .graduation { font-size: 17px; }
+    .titre-axe { font-size: 18px; }
+    .etiquette-zone { font-size: 15px; }
+
+    /* Les réglages passent les uns sous les autres plutôt que côte à côte. */
+    .barre-reglages { flex-direction: column; gap: 14px; }
+    .boutons button { padding: 9px 14px; }
+    .bascule { padding: 9px 13px; }
+
+    table { font-size: 0.84rem; }
+    th, td { padding: 7px 8px; white-space: nowrap; }
+    .repere-theorique .chiffre { font-size: 1.3rem; }
+    .legende { gap: 10px 14px; font-size: 0.8rem; }
+  }
   .axe { stroke: var(--bordure); stroke-width: 1; }
   .graduation { fill: var(--texte-doux); font-size: 11px; }
   .titre-axe { fill: var(--texte-doux); font-size: 12px; }
@@ -216,6 +250,10 @@
     margin-top: 8px;
   }
 
+  /* Les tableaux ont cinq colonnes : sur un téléphone ils débordent. Plutôt
+     que de masquer des colonnes, on les laisse défiler horizontalement dans
+     leur propre cadre — la page, elle, ne bouge pas. */
+  .tableau-defilant { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table { border-collapse: collapse; width: 100%; font-size: 0.9rem; margin-top: 6px; }
   th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--bordure); }
   th { color: var(--texte-doux); font-weight: 600; }
@@ -317,7 +355,7 @@
 <div class="definition" id="definition"></div>
 
 <div class="barre-zoom">
-  <span class="aide-zoom">Ctrl + molette pour zoomer · cliquer-glisser pour se déplacer · double-clic pour tout réafficher</span>
+  <span class="aide-zoom" id="aide-zoom"></span>
   <span class="etendue-vue" id="etendue-vue"></span>
   <button id="reinitialiser-zoom">Vue complète</button>
 </div>
@@ -328,16 +366,16 @@
 
 <div class="legende" id="legende"></div>
 
-<p class="infobulle" id="infobulle">Survolez le graphique pour lire les valeurs jour par jour.</p>
+<p class="infobulle" id="infobulle"></p>
 
 <h2>Position actuelle par rapport aux cycles sélectionnés</h2>
-<table id="tableau"></table>
+<div class="tableau-defilant"><table id="tableau"></table></div>
 
 <div class="lecture" id="lecture"></div>
 
 <div id="section-creux">
 <h2>Creux de chaque cycle</h2>
-<table id="tableau-creux"></table>
+<div class="tableau-defilant"><table id="tableau-creux"></table></div>
 <p class="note" id="note-creux"></p>
 </div>
 
@@ -351,7 +389,7 @@
 
 <div class="repere-theorique" id="repere-theorique"></div>
 
-<table id="comparaison-methodes"></table>
+<div class="tableau-defilant"><table id="comparaison-methodes"></table></div>
 <p class="note" id="note-methodes"></p>
 
 <div class="lecture" id="fenetre-creux"></div>
@@ -451,10 +489,28 @@ function actifPorte(cle) {
 
 // Marge gauche large : elle doit contenir à la fois le titre vertical de l'axe
 // et des étiquettes longues comme "-84.5 %", sans qu'ils se chevauchent.
-const MARGE = { haut: 18, droite: 18, bas: 46, gauche: 84 };
-const LARGEUR = 900, HAUTEUR = 460;
-const largeurTrace = LARGEUR - MARGE.gauche - MARGE.droite;
-const hauteurTrace = HAUTEUR - MARGE.haut - MARGE.bas;
+// Géométrie du dessin, en unités internes au SVG (le navigateur met ensuite le
+// tout à l'échelle de l'écran). Elle change selon la largeur disponible :
+// - sur un écran étroit, le dessin est proportionnellement plus haut, sans
+//   quoi il serait réduit à une bande de 170 px illisible ;
+// - les marges y sont plus larges, car les étiquettes des axes y sont écrites
+//   en plus gros pour rester lisibles une fois réduites.
+const LARGEUR = 900;
+let HAUTEUR, MARGE, largeurTrace, hauteurTrace;
+
+function ajusterFormat() {
+  const etroit = window.innerWidth <= 700;
+  HAUTEUR = etroit ? 680 : 460;
+  MARGE = etroit
+    ? { haut: 20, droite: 16, bas: 74, gauche: 108 }
+    : { haut: 18, droite: 18, bas: 46, gauche: 84 };
+  largeurTrace = LARGEUR - MARGE.gauche - MARGE.droite;
+  hauteurTrace = HAUTEUR - MARGE.haut - MARGE.bas;
+  document.getElementById("graphique")
+    .setAttribute("viewBox", `0 0 ${LARGEUR} ${HAUTEUR}`);
+}
+
+ajusterFormat();
 
 // Lissage de la fourchette, en jours de part et d'autre. Sans lissage, la bande
 // min-max de séries très volatiles est si dentelée qu'elle se lit comme du
@@ -927,7 +983,7 @@ function dessinerGraphique() {
   svg.onmouseleave = () => {
     const curseur = document.getElementById("curseur");
     if (curseur) curseur.style.display = "none";
-    document.getElementById("infobulle").textContent = "Survolez le graphique pour lire les valeurs jour par jour.";
+    document.getElementById("infobulle").textContent = INVITE_VALEURS;
   };
 }
 
@@ -1193,8 +1249,116 @@ window.addEventListener("mouseup", () => {
   svgGraphique.classList.remove("en-deplacement");
 });
 
-// Double-clic : retour à la vue complète, réflexe habituel sur ce type d'outil.
+// --- Gestes tactiles ---------------------------------------------------------
+// Le zoom à la molette et le déplacement à la souris n'existent pas sur un
+// téléphone. On y ajoute donc le pincement pour zoomer et le glissement
+// horizontal d'un doigt pour se déplacer, en laissant le glissement vertical
+// au défilement de la page.
+let gesteTactile = null;
+
+function ecartDoigts(a, b) {
+  return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+}
+
+function jourAuMilieu(a, b) {
+  const boite = svgGraphique.getBoundingClientRect();
+  const milieu = (a.clientX + b.clientX) / 2;
+  return jourDepuisX((milieu - boite.left) / boite.width * LARGEUR);
+}
+
+svgGraphique.addEventListener("touchstart", evenement => {
+  const doigts = evenement.touches;
+  if (doigts.length === 2) {
+    gesteTactile = {
+      type: "pincement",
+      ecart: ecartDoigts(doigts[0], doigts[1]),
+      centre: jourAuMilieu(doigts[0], doigts[1]),
+      vue: { ...vue },
+    };
+  } else if (doigts.length === 1) {
+    gesteTactile = { type: "glissement", x: doigts[0].clientX, vue: { ...vue } };
+  }
+}, { passive: true });
+
+svgGraphique.addEventListener("touchmove", evenement => {
+  if (!gesteTactile) return;
+  const doigts = evenement.touches;
+  const etendueDepart = gesteTactile.vue.fin - gesteTactile.vue.debut;
+
+  if (gesteTactile.type === "pincement" && doigts.length === 2) {
+    evenement.preventDefault();
+    const ecart = ecartDoigts(doigts[0], doigts[1]);
+    if (ecart === 0) return;
+    const nouvelleEtendue = Math.max(
+      ZOOM_MINIMUM_JOURS,
+      Math.min(jourMax, etendueDepart * (gesteTactile.ecart / ecart))
+    );
+    const proportion = (gesteTactile.centre - gesteTactile.vue.debut) / etendueDepart;
+    const debut = gesteTactile.centre - proportion * nouvelleEtendue;
+    appliquerVue(debut, debut + nouvelleEtendue);
+
+  } else if (gesteTactile.type === "glissement" && doigts.length === 1) {
+    const boite = svgGraphique.getBoundingClientRect();
+    const deplacement = (doigts[0].clientX - gesteTactile.x) / boite.width * LARGEUR;
+    // Seuil de quelques pixels : sans lui, le moindre tremblement du doigt
+    // pendant un défilement vertical ferait sauter le graphique.
+    if (Math.abs(deplacement) < 5) return;
+    gesteTactile.aBouge = true;
+    evenement.preventDefault();
+    const jours = -(deplacement / largeurTrace) * etendueDepart;
+    appliquerVue(gesteTactile.vue.debut + jours, gesteTactile.vue.fin + jours);
+  }
+}, { passive: false });
+
+svgGraphique.addEventListener("touchend", evenement => {
+  // Un doigt posé puis relevé sans déplacement est une lecture, pas un
+  // déplacement : on affiche les valeurs de ce jour, faute de survol possible.
+  if (gesteTactile && gesteTactile.type === "glissement" && !gesteTactile.aBouge) {
+    const doigt = evenement.changedTouches[0];
+    if (doigt) survol({ clientX: doigt.clientX }, svgGraphique);
+  }
+  if (evenement.touches.length === 0) gesteTactile = null;
+}, { passive: true });
+
+// Double-clic (ou double-tape) : retour à la vue complète.
 svgGraphique.addEventListener("dblclick", () => appliquerVue(0, jourMax));
+
+// Rotation du téléphone ou redimensionnement de la fenêtre : les proportions
+// du dessin changent, il faut le retracer.
+let redessinApresRedimensionnement;
+window.addEventListener("resize", () => {
+  clearTimeout(redessinApresRedimensionnement);
+  redessinApresRedimensionnement = setTimeout(() => {
+    ajusterFormat();
+    dessinerGraphique();
+  }, 150);
+});
+
+// L'aide dépend de ce que permet l'appareil : parler de « Ctrl + molette » sur
+// un téléphone n'aide personne. On teste les CAPACITÉS plutôt que de deviner
+// un mode unique — un portable à écran tactile possède les deux, et choisir
+// l'un reviendrait à cacher l'autre. Les deux jeux de gestes fonctionnent
+// toujours ; seule leur description s'ajuste.
+const aSouris = window.matchMedia("(pointer: fine)").matches;
+const aTactile = navigator.maxTouchPoints > 0
+  || window.matchMedia("(pointer: coarse)").matches;
+
+const gestes = [];
+if (aSouris || !aTactile) {
+  gestes.push("Ctrl + molette pour zoomer · cliquer-glisser pour se déplacer");
+}
+if (aTactile) {
+  gestes.push("pincez pour zoomer · glissez horizontalement pour vous déplacer");
+}
+gestes.push(aTactile && !aSouris ? "double-tapez pour tout réafficher"
+                                 : "double-clic pour tout réafficher");
+document.getElementById("aide-zoom").textContent = gestes.join(" · ");
+
+const lectures = [];
+if (aSouris || !aTactile) lectures.push("Survolez le graphique");
+if (aTactile) lectures.push(lectures.length ? "ou appuyez dessus" : "Appuyez sur le graphique");
+const INVITE_VALEURS = `${lectures.join(" ")} pour lire les valeurs d'un jour.`;
+document.getElementById("infobulle").textContent = INVITE_VALEURS;
 
 const boutonZoom = document.getElementById("reinitialiser-zoom");
 boutonZoom.onclick = () => appliquerVue(0, jourMax);
