@@ -170,7 +170,11 @@
     background: var(--fond-bloc);
     border-radius: 0 8px 8px 0;
     padding: 11px 15px;
-    margin: 0 0 16px;
+    /* Occupe toute la largeur du bloc de réglages : sans cela, elle se
+       placerait en colonne à côté des boutons. L'espacement vient de
+       l'écart du conteneur, d'où l'absence de marge. */
+    flex-basis: 100%;
+    margin: 0;
     font-size: 0.9rem;
   }
   .definition .nom { font-weight: 600; }
@@ -182,12 +186,19 @@
   }
   .definition p { margin: 7px 0 0; }
 
+  /* Les boutons de cycles viennent en dernier des réglages, et l'aide au zoom
+     passe sous le graphique : ces deux déplacements mettent les boutons au
+     contact direct de la courbe, là où on les manipule en la regardant. */
+  #groupe-cycles { order: 1; }
+  .zone-graphique { display: flex; flex-direction: column; }
+
   .barre-zoom {
     display: flex;
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
-    margin-bottom: 8px;
+    order: 1;
+    margin: 9px 0 0;
     font-size: 0.82rem;
     color: var(--texte-doux);
   }
@@ -246,6 +257,7 @@
 
     /* Les réglages passent les uns sous les autres plutôt que côte à côte. */
     .barre-reglages { flex-direction: column; gap: 14px; }
+    .definition { flex-basis: auto; }
     .boutons button { padding: 9px 14px; }
     .bascule { padding: 9px 13px; }
 
@@ -391,22 +403,29 @@
     <span class="intitule">Métrique</span>
     <div class="boutons onglets" id="onglets" role="tablist"></div>
   </div>
-  <div class="groupe-reglage">
+  <div class="groupe-reglage" id="groupe-cycles">
     <span class="intitule">Cycles de référence affichés</span>
     <div class="boutons" id="bascules"></div>
   </div>
+
+  <!-- La définition fait partie du même bloc que les réglages : sur téléphone,
+       elle passe ainsi avant les boutons de cycles (voir « order » plus bas),
+       ce qui laisse ces boutons directement au contact du graphique. -->
+  <div class="definition" id="definition"></div>
 </div>
 
-<div class="definition" id="definition"></div>
+<!-- Aide au zoom et graphique réunis : sur téléphone, l'aide passe en dessous
+     (voir « order »), pour que les boutons de cycles touchent le graphique. -->
+<div class="zone-graphique">
+  <div class="barre-zoom">
+    <span class="aide-zoom" id="aide-zoom"></span>
+    <span class="etendue-vue" id="etendue-vue"></span>
+    <button id="reinitialiser-zoom">Vue complète</button>
+  </div>
 
-<div class="barre-zoom">
-  <span class="aide-zoom" id="aide-zoom"></span>
-  <span class="etendue-vue" id="etendue-vue"></span>
-  <button id="reinitialiser-zoom">Vue complète</button>
-</div>
-
-<div class="cadre-graphique">
-  <svg id="graphique" viewBox="0 0 900 460" role="img" aria-label="Comparaison des cycles Bitcoin"></svg>
+  <div class="cadre-graphique">
+    <svg id="graphique" viewBox="0 0 900 460" role="img" aria-label="Comparaison des cycles Bitcoin"></svg>
+  </div>
 </div>
 
 <div class="legende" id="legende"></div>
