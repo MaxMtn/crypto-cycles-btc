@@ -137,7 +137,10 @@
     padding: 8px;
     overflow-x: auto;
   }
-  svg { display: block; width: 100%; height: auto; min-width: 560px; }
+  /* Ne viser que le graphique, et surtout pas « svg » en général : d'autres
+     petites images vectorielles (la puce de la légende) seraient étirées
+     à la largeur de la page. */
+  #graphique { display: block; width: 100%; height: auto; min-width: 560px; }
   .axe { stroke: var(--bordure); stroke-width: 1; }
   .graduation { fill: var(--texte-doux); font-size: 11px; }
   .titre-axe { fill: var(--texte-doux); font-size: 12px; }
