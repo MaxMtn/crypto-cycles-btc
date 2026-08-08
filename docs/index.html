@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Cycles Bitcoin — position actuelle</title>
+<title>Crypto Cockpit — cycles de marché</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   /* Couleurs : deux jeux, un pour le mode clair, un pour le mode sombre. */
   :root {
@@ -49,7 +50,19 @@
     max-width: 980px;
     margin-inline: auto;
   }
-  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  h1 { font-size: 1.5rem; margin: 0; letter-spacing: -0.01em; }
+
+  .entete { display: flex; align-items: center; gap: 13px; margin-bottom: 6px; }
+  .marque { width: 46px; height: 46px; flex: none; }
+  .marque-courbe {
+    fill: none; stroke: var(--texte); stroke-width: 8;
+    stroke-linecap: round; stroke-linejoin: round;
+  }
+  /* Le halo reprend la couleur du fond : il détache le point de la courbe
+     sans avoir à déplacer l'un ou l'autre. */
+  .marque-halo { fill: var(--fond); }
+  .marque-point { fill: var(--actuel); }
+  .accroche { margin: 3px 0 0; color: var(--texte-doux); font-size: 0.92rem; }
   h2 { font-size: 1.05rem; margin: 32px 0 10px; }
   .sous-titre { color: var(--texte-doux); margin: 0 0 20px; font-size: 0.92rem; }
 
@@ -325,7 +338,21 @@
 </head>
 <body>
 
-<h1>Cycles Bitcoin — où en sommes-nous ?</h1>
+<header class="entete">
+  <!-- La marque est inscrite ici plutôt que chargée depuis logo.svg : ainsi
+       elle prend les couleurs du thème via les variables CSS, au lieu de
+       dépendre du réglage du système. -->
+  <svg class="marque" viewBox="8 15 50 34" aria-hidden="true">
+    <path class="marque-courbe"
+          d="M 13 41 C 18 41, 20 22, 26 22 C 32 22, 34 44, 40 44 C 44 44, 46 33, 49 29"/>
+    <circle class="marque-halo" cx="49" cy="29" r="8.5"/>
+    <circle class="marque-point" cx="49" cy="29" r="5.5"/>
+  </svg>
+  <div>
+    <h1>Crypto Cockpit</h1>
+    <p class="accroche">Où en sommes-nous dans le cycle ?</p>
+  </div>
+</header>
 
 <div class="fraicheur" id="fraicheur"></div>
 
