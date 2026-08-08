@@ -153,6 +153,7 @@
 
   /* Zone couvrant les jours où les cycles précédents ont touché leur creux. */
   .zone-creux { fill: var(--actuel); opacity: 0.07; }
+  .trait-repere { stroke: var(--actuel); stroke-width: 1.5; stroke-dasharray: 6 4; opacity: 0.7; }
   .etiquette-zone { fill: var(--texte-doux); font-size: 10px; opacity: 0.9; }
 
   .cadre-graphique {
@@ -207,6 +208,46 @@
   }
   .lecture p { margin: 0 0 8px; }
   .lecture p:last-child { margin-bottom: 0; }
+
+  /* Repère théorique : bordure en pointillés et fond neutre, pour qu'il ne
+     ressemble jamais à une donnée mesurée comme le reste de la page. */
+  .repere-theorique {
+    border: 2px dashed var(--bordure);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-top: 14px;
+    text-align: center;
+  }
+  .repere-theorique:empty { display: none; }
+  .repere-theorique .etiquette {
+    display: inline-block;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--texte-doux);
+    border: 1px solid var(--bordure);
+    border-radius: 999px;
+    padding: 2px 10px;
+    margin-bottom: 10px;
+  }
+  .repere-theorique .chiffre {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .repere-theorique .detail {
+    margin: 2px 0 0;
+    font-size: 0.9rem;
+    color: var(--texte-doux);
+    font-variant-numeric: tabular-nums;
+  }
+  .repere-theorique .methode {
+    margin: 10px auto 0;
+    max-width: 56ch;
+    font-size: 0.82rem;
+    color: var(--texte-doux);
+  }
 
   .note { font-size: 0.86rem; color: var(--texte-doux); margin-top: 10px; }
   .note strong { color: var(--texte); }
@@ -268,6 +309,7 @@
 <p class="note" id="note-creux"></p>
 
 <h2>Quand les cycles précédents ont-ils touché leur creux ?</h2>
+<div class="repere-theorique" id="repere-theorique"></div>
 <div class="lecture" id="fenetre-creux"></div>
 
 <footer>
@@ -275,8 +317,10 @@
   usage non commercial). Prix réalisé recalculé à partir de la capitalisation
   de marché et du MVRV.</p>
   <p>Cet outil est une aide à la réflexion personnelle. Il ne constitue pas un
-  conseil en investissement, ne formule aucune prévision de date ou de prix, et
-  n'est destiné à aucune diffusion à des tiers.</p>
+  conseil en investissement, ne formule aucun prix cible, et n'est destiné à
+  aucune diffusion à des tiers. Le repère théorique de creux qu'il affiche est
+  le résultat d'un calcul sur trois cycles passés, affiché à la demande : ce
+  n'est pas une prévision, et il ne doit pas être lu comme telle.</p>
 </footer>
 
 <script src="data.js"></script>
@@ -528,13 +572,26 @@ function valeursAuJourActuel(numeros, index) {
   return valeurs;
 }
 
+// Médiane au sens strict : avec un nombre pair de valeurs, c'est la moyenne
+// des deux valeurs centrales. Prendre simplement celle du milieu renverrait
+// la plus grande des deux, ce qui fausserait l'affichage dès que seuls deux
+// cycles sont sélectionnés.
+function mediane(liste) {
+  const triee = [...liste].sort((a, b) => a - b);
+  if (!triee.length) return null;
+  const milieu = Math.floor(triee.length / 2);
+  return triee.length % 2
+    ? triee[milieu]
+    : (triee[milieu - 1] + triee[milieu]) / 2;
+}
+
 function statistiques(valeurs) {
   const liste = Object.values(valeurs).sort((a, b) => a - b);
   if (!liste.length) return null;
   return {
     min: liste[0],
     max: liste[liste.length - 1],
-    mediane: liste[Math.floor(liste.length / 2)],
+    mediane: mediane(liste),
     nombre: liste.length,
   };
 }
@@ -591,6 +648,15 @@ function dessinerGraphique() {
     const x2 = echelleX(joursCreuxPasses[joursCreuxPasses.length - 1]);
     parties.push(`<rect class="zone-creux" x="${x1.toFixed(1)}" y="${MARGE.haut}" width="${Math.max(0, x2 - x1).toFixed(1)}" height="${hauteurTrace}"></rect>`);
     parties.push(`<text class="etiquette-zone" x="${((x1 + x2) / 2).toFixed(1)}" y="${MARGE.haut + 13}" text-anchor="middle">creux des cycles précédents</text>`);
+
+    // Trait du repère théorique, en pointillés : il ne relie aucune donnée
+    // mesurée, c'est le résultat d'un calcul sur trois dates.
+    const repere = jourRepereTheorique();
+    if (repere !== null) {
+      const xr = echelleX(repere).toFixed(1);
+      parties.push(`<line class="trait-repere" x1="${xr}" y1="${MARGE.haut}" x2="${xr}" y2="${HAUTEUR - MARGE.bas}"></line>`);
+      parties.push(`<text class="etiquette-zone" x="${xr}" y="${HAUTEUR - MARGE.bas - 6}" text-anchor="middle">repère théorique</text>`);
+    }
   }
 
   // Bande de fourchette : rend la dispersion visible partout, pas seulement
@@ -681,6 +747,30 @@ function creuxDuCycle(n) {
     if (creux === null || p[INDEX_DRAWDOWN] < creux[INDEX_DRAWDOWN]) creux = p;
   });
   return creux;
+}
+
+// Jours de creux des cycles de référence actuellement affichés.
+function joursCreuxAffiches() {
+  return cyclesSelectionnes()
+    .map(n => creuxDuCycle(n))
+    .filter(Boolean)
+    .map(c => c[0])
+    .sort((a, b) => a - b);
+}
+
+// Repère théorique : jour de creux obtenu à partir des cycles précédents.
+// La règle tient en une ligne, et c'est volontaire — elle doit rester lisible
+// et modifiable. Remplacer "mediane" par "moyenne" ci-dessous change le repère
+// et rien d'autre.
+const METHODE_REPERE = "mediane";
+
+function jourRepereTheorique() {
+  const jours = joursCreuxAffiches();
+  if (jours.length < 2) return null;
+  const valeur = METHODE_REPERE === "moyenne"
+    ? jours.reduce((a, b) => a + b, 0) / jours.length
+    : mediane(jours);
+  return Math.round(valeur);
 }
 
 // Date réelle correspondant au Nième jour d'un cycle.
@@ -975,13 +1065,12 @@ function dessinerCreux() {
 // annoncer une date de creux serait une prédiction déguisée en statistique.
 function dessinerFenetreCreux() {
   const bloc = document.getElementById("fenetre-creux");
-  const jours = cyclesSelectionnes()
-    .map(n => creuxDuCycle(n))
-    .filter(Boolean)
-    .map(c => c[0])
-    .sort((a, b) => a - b);
+  const jours = joursCreuxAffiches();
 
   if (jours.length < 2) {
+    // Le repère est effacé, et non laissé tel quel : afficher une date
+    // calculée sur des cycles qui ne sont plus affichés serait trompeur.
+    document.getElementById("repere-theorique").innerHTML = "";
     bloc.innerHTML = `<p>Affichez au moins deux cycles de référence pour situer
       leurs creux sur le calendrier du cycle en cours.</p>`;
     return;
@@ -989,12 +1078,22 @@ function dessinerFenetreCreux() {
 
   const premier = jours[0];
   const dernier = jours[jours.length - 1];
-  const median = jours[Math.floor(jours.length / 2)];
+  const median = jourRepereTheorique();
   const quand = jour => {
     const ecart = jour - jourActuel;
     if (ecart === 0) return "aujourd'hui";
     return ecart < 0 ? `il y a ${-ecart} jours` : `dans ${ecart} jours`;
   };
+
+  document.getElementById("repere-theorique").innerHTML = `
+    <span class="etiquette">Repère théorique — pas une prévision</span>
+    <p class="chiffre">${dateDuJour(numeroActuel, median)}</p>
+    <p class="detail">jour ${median} du cycle · ${quand(median)}</p>
+    <p class="methode">Calcul : ${METHODE_REPERE} des jours de creux des
+    ${jours.length} cycles affichés (${jours.join(", ")}). Aucune autre donnée
+    n'entre dans ce chiffre — ni prix, ni tendance, ni contexte de marché.
+    Changer les cycles affichés change ce repère.</p>
+  `;
 
   bloc.innerHTML = `
     <p><strong>Les ${jours.length} cycles affichés ont touché leur creux entre le
@@ -1008,13 +1107,15 @@ function dessinerFenetreCreux() {
     ${jourActuel >= premier && jourActuel <= dernier
       ? "à l'intérieur de cet intervalle"
       : "en dehors de cet intervalle"}.</p>
-    <p style="color: var(--texte-doux)">Ces dates ne sont pas une projection du
-    creux à venir, et cette page n'en produit pas. Elles indiquent seulement
-    quand les cycles précédents ont touché le leur. Trois observations réparties
-    sur ${dernier - premier} jours ne définissent aucune fenêtre fiable : la
-    largeur de l'intervalle est ici un artefact du petit nombre de cycles, pas
-    une mesure d'incertitude. Le creux du cycle en cours peut se situer avant,
-    après, ou être déjà passé.</p>
+    <p style="color: var(--texte-doux)">Ces dates indiquent quand les cycles
+    précédents ont touché leur creux, rien de plus. Le repère théorique
+    ci-dessus en est une moyenne de position, pas une observation : il ne
+    décrit aucun évènement constaté sur le cycle en cours. Trois observations
+    réparties sur ${dernier - premier} jours ne définissent aucune fenêtre
+    fiable : la largeur de l'intervalle est un artefact du petit nombre de
+    cycles, pas une mesure d'incertitude. Le creux du cycle en cours peut se
+    situer avant, après, ou être déjà passé — il l'est peut-être déjà, au
+    jour ${creuxDuCycle(numeroActuel)[0]}.</p>
   `;
 }
 

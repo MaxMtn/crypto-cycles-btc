@@ -100,6 +100,15 @@ L'interface doit rendre l'incertitude visible en permanence :
   gabarit fiable.
 - **Interdits** : prédiction de date de sommet, prix cible, formulation
   déterministe (« le sommet sera en… »).
+- **Exception décidée le 2026-08-08** : la page affiche un « repère théorique »
+  de date de creux, obtenu par médiane des jours de creux des cycles affichés.
+  L'utilisateur l'a demandé après avoir pris connaissance de l'objection (avec
+  n = 3, la médiane n'estime rien et la largeur de l'intervalle mesure surtout
+  le manque de cycles). Conditions à préserver : titre annonçant explicitement
+  le caractère théorique, méthode de calcul affichée à côté du chiffre,
+  encadré visuellement distinct du reste (pointillés), et mention que le creux
+  du cycle en cours est peut-être déjà passé. Ne pas étendre ce procédé à une
+  date de sommet ni à un prix cible, qui restent interdits.
 - Backtests : attention au biais de look-ahead (certaines métriques sont révisées
   a posteriori) et, dès qu'on sortira de BTC, au biais de survivance sur les
   altcoins.
