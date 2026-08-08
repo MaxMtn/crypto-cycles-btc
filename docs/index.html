@@ -146,6 +146,10 @@
   .ligne-mediane { fill: none; stroke: var(--texte-doux); stroke-width: 1.4; stroke-dasharray: 5 4; opacity: 0.85; }
   .bande-historique { fill: var(--bande); }
   .point-actuel { fill: var(--actuel); stroke: var(--fond); stroke-width: 2; }
+  /* Losange marquant le creux d'un cycle. Celui du cycle en cours est creux
+     (non rempli) parce qu'il est provisoire : rien ne dit qu'il est atteint. */
+  .creux { stroke: var(--fond); stroke-width: 1.5; }
+  .creux-provisoire { fill: var(--fond); stroke: var(--actuel); stroke-width: 2; }
   .curseur { stroke: var(--texte-doux); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.7; }
 
   .legende { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; font-size: 0.85rem; color: var(--texte-doux); }
@@ -174,6 +178,9 @@
   }
   .lecture p { margin: 0 0 8px; }
   .lecture p:last-child { margin-bottom: 0; }
+
+  .note { font-size: 0.86rem; color: var(--texte-doux); margin-top: 10px; }
+  .note strong { color: var(--texte); }
 
   footer {
     margin-top: 36px;
@@ -220,6 +227,10 @@
 <table id="tableau"></table>
 
 <div class="lecture" id="lecture"></div>
+
+<h2>Creux de chaque cycle</h2>
+<table id="tableau-creux"></table>
+<p class="note" id="note-creux"></p>
 
 <footer>
   <p>Données : Coin Metrics Community API (licence Creative Commons BY-NC 4.0,
@@ -507,6 +518,29 @@ function dessinerGraphique() {
   });
   parties.push(`<path class="ligne-actuelle" d="${cheminDepuisPoints(cycleActuel.points, conf.index, echelleY)}"></path>`);
 
+  // Losange au creux de chaque cycle affiché. Le marqueur se place sur la
+  // courbe de la métrique en cours d'affichage : il indique donc où en était
+  // cette métrique le jour du creux, et non le minimum de cette métrique.
+  // cx, cy et r sont des nombres : l'arrondi n'est fait qu'à l'écriture,
+  // sinon les additions ci-dessous concaténeraient des chaînes.
+  const losange = (cx, cy, r) => {
+    const a = v => v.toFixed(1);
+    return `M ${a(cx)} ${a(cy - r)} L ${a(cx + r)} ${a(cy)} `
+      + `L ${a(cx)} ${a(cy + r)} L ${a(cx - r)} ${a(cy)} Z`;
+  };
+
+  [...selection, numeroActuel].forEach(n => {
+    const creux = creuxDuCycle(n);
+    if (!creux || creux[conf.index] === null) return;
+    const cx = echelleX(creux[0]);
+    const cy = echelleY(creux[conf.index]);
+    if (n === numeroActuel) {
+      parties.push(`<path class="creux-provisoire" d="${losange(cx, cy, 5.5)}"></path>`);
+    } else {
+      parties.push(`<path class="creux" style="fill: ${couleurCycle(n)}" d="${losange(cx, cy, 5)}"></path>`);
+    }
+  });
+
   // Point marquant la position d'aujourd'hui.
   const dernier = cycleActuel.points[cycleActuel.points.length - 1];
   if (dernier[conf.index] !== null) {
@@ -522,6 +556,30 @@ function dessinerGraphique() {
     if (curseur) curseur.style.display = "none";
     document.getElementById("infobulle").textContent = "Survolez le graphique pour lire les valeurs jour par jour.";
   };
+}
+
+// --- Creux de cycle ---------------------------------------------------------
+// Le creux est défini comme le jour où le drawdown a été le plus profond, et
+// NON comme le prix le plus bas. Un cycle commence juste après un halving,
+// alors que le prix sort à peine du marché baissier précédent : le « prix le
+// plus bas » tomberait donc sur les tout premiers jours du cycle (jour 0 pour
+// les cycles 2012 et 2020), ce qui ne désigne aucun creux de marché.
+const INDEX_DRAWDOWN = METRIQUES.drawdown_pct.index;
+
+function creuxDuCycle(n) {
+  let creux = null;
+  DONNEES.cycles[n].points.forEach(p => {
+    if (p[INDEX_DRAWDOWN] === null) return;
+    if (creux === null || p[INDEX_DRAWDOWN] < creux[INDEX_DRAWDOWN]) creux = p;
+  });
+  return creux;
+}
+
+// Date réelle correspondant au Nième jour d'un cycle.
+function dateDuJour(n, jour) {
+  const date = new Date(DONNEES.cycles[n].start_date + "T00:00:00Z");
+  date.setUTCDate(date.getUTCDate() + jour);
+  return date.toISOString().slice(0, 10);
 }
 
 // --- Définition de la métrique sélectionnée --------------------------------
@@ -542,6 +600,7 @@ function dessinerLegende() {
   cyclesSelectionnes().forEach(n => {
     morceaux.push(`<span><i class="puce" style="background: ${couleurCycle(n)}"></i> ${DONNEES.cycles[n].label}</span>`);
   });
+  morceaux.push(`<span><svg width="12" height="12" viewBox="0 0 12 12" style="flex:none"><path d="M6 1 L11 6 L6 11 L1 6 Z" fill="var(--texte-doux)"></path></svg> Creux du cycle (drawdown le plus profond)</span>`);
   if (cyclesSelectionnes().length >= 2) {
     morceaux.push(`<span><i class="puce" style="background: var(--texte-doux); opacity:.7"></i> Médiane des cycles affichés (pointillés)</span>`);
     morceaux.push(`<span><i class="puce" style="background: var(--bande); height: 10px"></i> Fourchette min–max des cycles affichés (lissée sur ±${FENETRE_LISSAGE} jours)</span>`);
@@ -659,6 +718,56 @@ function dessinerLecture() {
   `;
 }
 
+// --- Tableau des creux de cycle ---------------------------------------------
+function dessinerCreux() {
+  const conf = METRIQUES.drawdown_pct;
+  const creuxActuel = creuxDuCycle(numeroActuel);
+  const jourCreuxActuel = creuxActuel[0];
+
+  const lignes = [`<tr><th>Cycle</th><th>Jour du creux</th><th>Date</th><th>Profondeur</th><th>Écart avec le creux du cycle en cours</th></tr>`];
+
+  [...cyclesSelectionnes(), numeroActuel].forEach(n => {
+    const creux = creuxDuCycle(n);
+    if (!creux) return;
+
+    let ecart;
+    if (n === numeroActuel) {
+      ecart = "— (référence, provisoire)";
+    } else {
+      const difference = creux[0] - jourCreuxActuel;
+      ecart = difference === 0
+        ? "même jour de cycle"
+        : `${Math.abs(difference)} j plus ${difference > 0 ? "tard" : "tôt"}`;
+    }
+
+    const couleur = n === numeroActuel ? "var(--actuel)" : couleurCycle(n);
+    lignes.push(`<tr>
+      <td><span style="color:${couleur}">●</span> ${DONNEES.cycles[n].label}</td>
+      <td>jour ${creux[0]}</td>
+      <td>${dateDuJour(n, creux[0])}</td>
+      <td>${conf.format(creux[INDEX_DRAWDOWN])}</td>
+      <td>${ecart}</td>
+    </tr>`);
+  });
+
+  document.getElementById("tableau-creux").innerHTML = lignes.join("");
+
+  const joursDepuis = jourActuel - jourCreuxActuel;
+  document.getElementById("note-creux").innerHTML = `
+    Le point le plus bas atteint jusqu'ici par le cycle en cours remonte au
+    <strong>jour ${jourCreuxActuel}</strong> (${dateDuJour(numeroActuel, jourCreuxActuel)}),
+    soit il y a <strong>${joursDepuis} jours</strong>.
+    Ce creux est <strong>provisoire</strong> : il désigne le point le plus bas
+    observé à ce jour, pas un plancher acquis. Tant que le cycle n'est pas
+    terminé, un point plus bas peut le déplacer — d'autant qu'il est récent.
+    Les creux des cycles précédents sont, eux, définitifs.
+    Le creux est ici le jour du drawdown le plus profond, et non celui du prix
+    le plus bas : un cycle débute juste après un halving, quand le prix sort à
+    peine du marché baissier précédent, si bien que le « prix le plus bas »
+    tomberait sur les premiers jours du cycle sans désigner aucun creux réel.
+  `;
+}
+
 // --- Rappel dynamique lié à la sélection ------------------------------------
 function dessinerAvertissementSelection() {
   const nombre = cyclesSelectionnes().length;
@@ -690,6 +799,7 @@ function dessinerTout() {
   dessinerLegende();
   dessinerTableau();
   dessinerLecture();
+  dessinerCreux();
   dessinerAvertissementSelection();
 }
 
