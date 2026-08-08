@@ -130,6 +130,31 @@
   }
   .definition p { margin: 7px 0 0; }
 
+  .barre-zoom {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+    font-size: 0.82rem;
+    color: var(--texte-doux);
+  }
+  .barre-zoom .aide-zoom { flex: 1 1 auto; }
+  .barre-zoom .etendue-vue { font-variant-numeric: tabular-nums; }
+  .barre-zoom button {
+    font: inherit;
+    padding: 5px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--bordure);
+    background: var(--fond-bloc);
+    color: var(--texte);
+    cursor: pointer;
+  }
+
+  /* Zone couvrant les jours où les cycles précédents ont touché leur creux. */
+  .zone-creux { fill: var(--actuel); opacity: 0.07; }
+  .etiquette-zone { fill: var(--texte-doux); font-size: 10px; opacity: 0.9; }
+
   .cadre-graphique {
     border: 1px solid var(--bordure);
     border-radius: 10px;
@@ -140,7 +165,8 @@
   /* Ne viser que le graphique, et surtout pas « svg » en général : d'autres
      petites images vectorielles (la puce de la légende) seraient étirées
      à la largeur de la page. */
-  #graphique { display: block; width: 100%; height: auto; min-width: 560px; }
+  #graphique { display: block; width: 100%; height: auto; min-width: 560px; cursor: grab; }
+  #graphique.en-deplacement { cursor: grabbing; }
   .axe { stroke: var(--bordure); stroke-width: 1; }
   .graduation { fill: var(--texte-doux); font-size: 11px; }
   .titre-axe { fill: var(--texte-doux); font-size: 12px; }
@@ -218,6 +244,12 @@
 
 <div class="definition" id="definition"></div>
 
+<div class="barre-zoom">
+  <span class="aide-zoom">Ctrl + molette pour zoomer · cliquer-glisser pour se déplacer · double-clic pour tout réafficher</span>
+  <span class="etendue-vue" id="etendue-vue"></span>
+  <button id="reinitialiser-zoom">Vue complète</button>
+</div>
+
 <div class="cadre-graphique">
   <svg id="graphique" viewBox="0 0 900 460" role="img" aria-label="Comparaison des cycles Bitcoin"></svg>
 </div>
@@ -234,6 +266,9 @@
 <h2>Creux de chaque cycle</h2>
 <table id="tableau-creux"></table>
 <p class="note" id="note-creux"></p>
+
+<h2>Quand les cycles précédents ont-ils touché leur creux ?</h2>
+<div class="lecture" id="fenetre-creux"></div>
 
 <footer>
   <p>Données : Coin Metrics Community API (licence Creative Commons BY-NC 4.0,
@@ -360,10 +395,34 @@ lienAucun.textContent = "tout masquer";
 lienAucun.onclick = () => { cyclesAffiches = new Set(); dessinerTout(); };
 bascules.appendChild(lienAucun);
 
+// --- Zoom et déplacement ----------------------------------------------------
+// "vue" est la tranche de jours actuellement visible. Tout le dessin en
+// dépend : zoomer revient à rétrécir cette tranche, se déplacer à la faire
+// glisser. On ne descend pas sous 40 jours affichés, en dessous le graphique
+// n'apprend plus rien.
+const ZOOM_MINIMUM_JOURS = 40;
+let vue = { debut: 0, fin: jourMax };
+
+function vueEstInitiale() {
+  return vue.debut === 0 && vue.fin === jourMax;
+}
+
 // --- Fonctions de conversion données -> coordonnées du dessin ---------------
 function echelleX(jour) {
-  return MARGE.gauche + (jour / jourMax) * largeurTrace;
+  return MARGE.gauche + ((jour - vue.debut) / (vue.fin - vue.debut)) * largeurTrace;
 }
+// Conversion inverse : de quelle journée s'agit-il, à cet endroit de l'écran ?
+function jourDepuisX(xPixel) {
+  return vue.debut + ((xPixel - MARGE.gauche) / largeurTrace) * (vue.fin - vue.debut);
+}
+// Choisit un pas de graduation « rond » donnant environ 6 à 8 repères
+// à l'écran, quel que soit le niveau de zoom.
+function pasGraduation(etendue) {
+  const candidats = [5, 10, 20, 25, 50, 100, 200, 250, 500];
+  for (const pas of candidats) if (etendue / pas <= 8) return pas;
+  return 500;
+}
+
 function fabriquerEchelleY(min, max) {
   // On ajoute une marge de 6 % en haut et en bas pour que les courbes ne
   // touchent pas les bords du cadre.
@@ -373,23 +432,32 @@ function fabriquerEchelleY(min, max) {
 }
 
 function bornesMetrique(index) {
-  // L'échelle verticale ne tient compte que des courbes réellement affichées,
-  // pour que le graphique se recadre quand on masque des cycles.
+  // L'échelle verticale ne tient compte que de ce qui est réellement à
+  // l'écran : les courbes masquées, comme les jours hors de la tranche
+  // affichée, sont ignorés. Le graphique se recadre donc quand on zoome.
   let min = Infinity, max = -Infinity;
   [...cyclesSelectionnes(), numeroActuel].forEach(n => {
     DONNEES.cycles[n].points.forEach(p => {
+      if (p[0] < vue.debut || p[0] > vue.fin) return;
       const v = p[index];
       if (v === null) return;
       if (v < min) min = v;
       if (v > max) max = v;
     });
   });
+  if (min === Infinity) return [0, 1];  // rien de visible
   return [min, max];
+}
+
+// Ne conserve que les points visibles, avec deux jours de marge de part et
+// d'autre pour que les courbes rejoignent bien les bords du cadre.
+function pointsVisibles(points) {
+  return points.filter(p => p[0] >= vue.debut - 2 && p[0] <= vue.fin + 2);
 }
 
 function cheminDepuisPoints(points, index, echelleY) {
   let d = "", enCours = false;
-  points.forEach(p => {
+  pointsVisibles(points).forEach(p => {
     const v = p[index];
     if (v === null) { enCours = false; return; }
     const x = echelleX(p[0]).toFixed(1), y = echelleY(v).toFixed(1);
@@ -421,8 +489,13 @@ function calculerFourchette(numeros, index) {
   // se rétrécirait artificiellement, faute de cycles encore présents.
   const dernierJourCommun = Math.min(...parCycle.map(m => Math.max(...m.keys())));
 
+  // On ne calcule que la tranche visible : recalculer les 1300 jours à chaque
+  // cran de molette rendrait le zoom poussif.
+  const premierJour = Math.max(0, Math.floor(vue.debut) - 2);
+  const dernierJour = Math.min(dernierJourCommun, Math.ceil(vue.fin) + 2);
+
   const resultat = [];
-  for (let jour = 0; jour <= dernierJourCommun; jour++) {
+  for (let jour = premierJour; jour <= dernierJour; jour++) {
     const valeurs = [];
     let complet = true;
     for (const serie of parCycle) {
@@ -475,6 +548,51 @@ function dessinerGraphique() {
   const svg = document.getElementById("graphique");
   const parties = [];
 
+  // Tout ce qui est tracé à l'intérieur du cadre est découpé à ses bords :
+  // sans cela, une fois zoomé, les courbes déborderaient sur les axes et
+  // leurs étiquettes.
+  parties.push(`<defs><clipPath id="zone-trace"><rect x="${MARGE.gauche}" y="${MARGE.haut}" width="${largeurTrace}" height="${hauteurTrace}"></rect></clipPath></defs>`);
+
+  // 1. Quadrillage, dessiné en premier pour rester sous les courbes.
+  const nbGraduations = 5;
+  for (let i = 0; i <= nbGraduations; i++) {
+    const v = min + (max - min) * (i / nbGraduations);
+    const y = echelleY(v).toFixed(1);
+    parties.push(`<line class="axe" x1="${MARGE.gauche}" y1="${y}" x2="${LARGEUR - MARGE.droite}" y2="${y}" opacity="0.45"></line>`);
+    parties.push(`<text class="graduation" x="${MARGE.gauche - 8}" y="${y}" text-anchor="end" dominant-baseline="middle">${conf.format(v)}</text>`);
+  }
+
+  // Graduations de l'axe du temps : le pas s'adapte au niveau de zoom, sinon
+  // on se retrouverait avec une seule graduation une fois zoomé, ou des
+  // centaines une fois dézoomé.
+  const pas = pasGraduation(vue.fin - vue.debut);
+  const premier = Math.ceil(vue.debut / pas) * pas;
+  for (let jour = premier; jour <= vue.fin; jour += pas) {
+    const x = echelleX(jour).toFixed(1);
+    parties.push(`<line class="axe" x1="${x}" y1="${HAUTEUR - MARGE.bas}" x2="${x}" y2="${HAUTEUR - MARGE.bas + 5}"></line>`);
+    parties.push(`<text class="graduation" x="${x}" y="${HAUTEUR - MARGE.bas + 18}" text-anchor="middle">${jour}</text>`);
+  }
+
+  // 2. Contenu du cadre, découpé à ses bords.
+  parties.push(`<g clip-path="url(#zone-trace)">`);
+
+  // Fenêtre dans laquelle les cycles précédents ont touché leur creux,
+  // reportée sur la durée du cycle en cours. C'est une observation sur le
+  // passé affichée à l'échelle du présent, pas une prévision : voir la note
+  // sous le tableau des creux.
+  const joursCreuxPasses = selection
+    .map(n => creuxDuCycle(n))
+    .filter(Boolean)
+    .map(c => c[0])
+    .sort((a, b) => a - b);
+
+  if (joursCreuxPasses.length >= 2) {
+    const x1 = echelleX(joursCreuxPasses[0]);
+    const x2 = echelleX(joursCreuxPasses[joursCreuxPasses.length - 1]);
+    parties.push(`<rect class="zone-creux" x="${x1.toFixed(1)}" y="${MARGE.haut}" width="${Math.max(0, x2 - x1).toFixed(1)}" height="${hauteurTrace}"></rect>`);
+    parties.push(`<text class="etiquette-zone" x="${((x1 + x2) / 2).toFixed(1)}" y="${MARGE.haut + 13}" text-anchor="middle">creux des cycles précédents</text>`);
+  }
+
   // Bande de fourchette : rend la dispersion visible partout, pas seulement
   // à la date du jour.
   const fourchette = calculerFourchette(selection, conf.index);
@@ -494,25 +612,6 @@ function dessinerGraphique() {
     });
     parties.push(`<path class="ligne-mediane" d="${mediane.trim()}"></path>`);
   }
-
-  // Graduations horizontales (axe des valeurs)
-  const nbGraduations = 5;
-  for (let i = 0; i <= nbGraduations; i++) {
-    const v = min + (max - min) * (i / nbGraduations);
-    const y = echelleY(v).toFixed(1);
-    parties.push(`<line class="axe" x1="${MARGE.gauche}" y1="${y}" x2="${LARGEUR - MARGE.droite}" y2="${y}" opacity="0.45"></line>`);
-    parties.push(`<text class="graduation" x="${MARGE.gauche - 8}" y="${y}" text-anchor="end" dominant-baseline="middle">${conf.format(v)}</text>`);
-  }
-
-  // Graduations verticales (axe du temps, en jours après le halving)
-  for (let jour = 0; jour <= jourMax; jour += 200) {
-    const x = echelleX(jour).toFixed(1);
-    parties.push(`<line class="axe" x1="${x}" y1="${HAUTEUR - MARGE.bas}" x2="${x}" y2="${HAUTEUR - MARGE.bas + 5}"></line>`);
-    parties.push(`<text class="graduation" x="${x}" y="${HAUTEUR - MARGE.bas + 18}" text-anchor="middle">${jour}</text>`);
-  }
-  parties.push(`<line class="axe" x1="${MARGE.gauche}" y1="${HAUTEUR - MARGE.bas}" x2="${LARGEUR - MARGE.droite}" y2="${HAUTEUR - MARGE.bas}"></line>`);
-  parties.push(`<text class="titre-axe" x="${MARGE.gauche + largeurTrace / 2}" y="${HAUTEUR - 8}" text-anchor="middle">Jours écoulés depuis le halving</text>`);
-  parties.push(`<text class="titre-axe" transform="rotate(-90)" x="${-(MARGE.haut + hauteurTrace / 2)}" y="14" text-anchor="middle">${conf.axe}</text>`);
 
   // Courbes des cycles sélectionnés, puis du cycle en cours par-dessus.
   selection.forEach(n => {
@@ -551,6 +650,12 @@ function dessinerGraphique() {
   }
 
   parties.push(`<line class="curseur" id="curseur" x1="0" y1="${MARGE.haut}" x2="0" y2="${HAUTEUR - MARGE.bas}" style="display:none"></line>`);
+
+  // 3. Fin de la zone découpée, puis axes et titres par-dessus.
+  parties.push(`</g>`);
+  parties.push(`<line class="axe" x1="${MARGE.gauche}" y1="${HAUTEUR - MARGE.bas}" x2="${LARGEUR - MARGE.droite}" y2="${HAUTEUR - MARGE.bas}"></line>`);
+  parties.push(`<text class="titre-axe" x="${MARGE.gauche + largeurTrace / 2}" y="${HAUTEUR - 8}" text-anchor="middle">Jours écoulés depuis le halving</text>`);
+  parties.push(`<text class="titre-axe" transform="rotate(-90)" x="${-(MARGE.haut + hauteurTrace / 2)}" y="14" text-anchor="middle">${conf.axe}</text>`);
 
   svg.innerHTML = parties.join("\n");
   svg.onmousemove = evenement => survol(evenement, svg);
@@ -605,10 +710,93 @@ function dessinerLegende() {
   });
   morceaux.push(`<span><svg width="12" height="12" viewBox="0 0 12 12" style="flex:none"><path d="M6 1 L11 6 L6 11 L1 6 Z" fill="var(--texte-doux)"></path></svg> Creux du cycle (drawdown le plus profond)</span>`);
   if (cyclesSelectionnes().length >= 2) {
+    morceaux.push(`<span><i class="puce" style="background: var(--actuel); opacity:.25; height: 10px"></i> Jours où les cycles précédents ont touché leur creux</span>`);
+  }
+  if (cyclesSelectionnes().length >= 2) {
     morceaux.push(`<span><i class="puce" style="background: var(--texte-doux); opacity:.7"></i> Médiane des cycles affichés (pointillés)</span>`);
     morceaux.push(`<span><i class="puce" style="background: var(--bande); height: 10px"></i> Fourchette min–max des cycles affichés (lissée sur ±${FENETRE_LISSAGE} jours)</span>`);
   }
   document.getElementById("legende").innerHTML = morceaux.join("");
+}
+
+// --- Zoom à la molette et déplacement à la souris ---------------------------
+// Le redessin passe par requestAnimationFrame : la molette envoie beaucoup
+// plus d'évènements que l'écran n'affiche d'images, redessiner à chacun
+// serait du travail perdu.
+let redessinPlanifie = false;
+function planifierRedessin() {
+  if (redessinPlanifie) return;
+  redessinPlanifie = true;
+  requestAnimationFrame(() => {
+    redessinPlanifie = false;
+    dessinerGraphique();
+    majBoutonZoom();
+  });
+}
+
+// Fixe la tranche visible, en la maintenant dans les limites des données.
+function appliquerVue(debut, fin) {
+  const etendue = Math.max(ZOOM_MINIMUM_JOURS, Math.min(jourMax, fin - debut));
+  const debutBorne = Math.min(Math.max(0, debut), jourMax - etendue);
+  vue = { debut: debutBorne, fin: debutBorne + etendue };
+  planifierRedessin();
+}
+
+function zoomer(centre, facteur) {
+  const etendue = vue.fin - vue.debut;
+  const nouvelleEtendue = Math.max(ZOOM_MINIMUM_JOURS, Math.min(jourMax, etendue * facteur));
+  // On garde sous le curseur le jour qui s'y trouvait déjà : c'est ce qui
+  // donne l'impression de zoomer « vers » l'endroit pointé.
+  const proportion = (centre - vue.debut) / etendue;
+  const debut = centre - proportion * nouvelleEtendue;
+  appliquerVue(debut, debut + nouvelleEtendue);
+}
+
+function xDansSvg(evenement, svg) {
+  const boite = svg.getBoundingClientRect();
+  return (evenement.clientX - boite.left) / boite.width * LARGEUR;
+}
+
+const svgGraphique = document.getElementById("graphique");
+
+svgGraphique.addEventListener("wheel", evenement => {
+  // Sans Ctrl (ou Cmd), la molette doit continuer à faire défiler la page :
+  // capturer tout défilement rendrait la page impossible à parcourir.
+  if (!evenement.ctrlKey && !evenement.metaKey) return;
+  evenement.preventDefault();
+  const jourSousCurseur = jourDepuisX(xDansSvg(evenement, svgGraphique));
+  zoomer(jourSousCurseur, evenement.deltaY > 0 ? 1.18 : 1 / 1.18);
+}, { passive: false });
+
+let glissement = null;
+svgGraphique.addEventListener("mousedown", evenement => {
+  glissement = { x: evenement.clientX, debut: vue.debut, fin: vue.fin };
+  svgGraphique.classList.add("en-deplacement");
+});
+window.addEventListener("mousemove", evenement => {
+  if (!glissement) return;
+  const boite = svgGraphique.getBoundingClientRect();
+  const deplacementPixels = (evenement.clientX - glissement.x) / boite.width * LARGEUR;
+  const etendue = glissement.fin - glissement.debut;
+  const deplacementJours = -(deplacementPixels / largeurTrace) * etendue;
+  appliquerVue(glissement.debut + deplacementJours, glissement.fin + deplacementJours);
+});
+window.addEventListener("mouseup", () => {
+  glissement = null;
+  svgGraphique.classList.remove("en-deplacement");
+});
+
+// Double-clic : retour à la vue complète, réflexe habituel sur ce type d'outil.
+svgGraphique.addEventListener("dblclick", () => appliquerVue(0, jourMax));
+
+const boutonZoom = document.getElementById("reinitialiser-zoom");
+boutonZoom.onclick = () => appliquerVue(0, jourMax);
+
+function majBoutonZoom() {
+  boutonZoom.style.visibility = vueEstInitiale() ? "hidden" : "visible";
+  document.getElementById("etendue-vue").textContent = vueEstInitiale()
+    ? ""
+    : `jours ${Math.round(vue.debut)} à ${Math.round(vue.fin)}`;
 }
 
 // --- Lecture des valeurs au survol -----------------------------------------
@@ -624,11 +812,10 @@ function valeurAuJour(points, jour, index) {
 
 function survol(evenement, svg) {
   const conf = METRIQUES[metriqueChoisie];
-  const boite = svg.getBoundingClientRect();
-  const xPixel = (evenement.clientX - boite.left) / boite.width * LARGEUR;
+  const xPixel = xDansSvg(evenement, svg);
   if (xPixel < MARGE.gauche || xPixel > LARGEUR - MARGE.droite) return;
 
-  const jour = Math.round((xPixel - MARGE.gauche) / largeurTrace * jourMax);
+  const jour = Math.round(jourDepuisX(xPixel));
   const curseur = document.getElementById("curseur");
   curseur.setAttribute("x1", xPixel.toFixed(1));
   curseur.setAttribute("x2", xPixel.toFixed(1));
@@ -778,6 +965,57 @@ function dessinerCreux() {
     peine du marché baissier précédent, si bien que le « prix le plus bas »
     tomberait sur les premiers jours du cycle sans désigner aucun creux réel.
   `;
+
+  dessinerFenetreCreux();
+}
+
+// --- Où les cycles précédents ont touché leur creux -------------------------
+// Volontairement présenté comme un relevé du passé reporté sur le calendrier
+// du cycle en cours, et non comme une date projetée : avec trois observations,
+// annoncer une date de creux serait une prédiction déguisée en statistique.
+function dessinerFenetreCreux() {
+  const bloc = document.getElementById("fenetre-creux");
+  const jours = cyclesSelectionnes()
+    .map(n => creuxDuCycle(n))
+    .filter(Boolean)
+    .map(c => c[0])
+    .sort((a, b) => a - b);
+
+  if (jours.length < 2) {
+    bloc.innerHTML = `<p>Affichez au moins deux cycles de référence pour situer
+      leurs creux sur le calendrier du cycle en cours.</p>`;
+    return;
+  }
+
+  const premier = jours[0];
+  const dernier = jours[jours.length - 1];
+  const median = jours[Math.floor(jours.length / 2)];
+  const quand = jour => {
+    const ecart = jour - jourActuel;
+    if (ecart === 0) return "aujourd'hui";
+    return ecart < 0 ? `il y a ${-ecart} jours` : `dans ${ecart} jours`;
+  };
+
+  bloc.innerHTML = `
+    <p><strong>Les ${jours.length} cycles affichés ont touché leur creux entre le
+    jour ${premier} et le jour ${dernier} de leur cycle</strong> (médiane :
+    jour ${median}).</p>
+    <p>Reportés sur le calendrier du cycle en cours, ces jours correspondent au
+    <strong>${dateDuJour(numeroActuel, premier)}</strong> (${quand(premier)}),
+    au <strong>${dateDuJour(numeroActuel, median)}</strong> (${quand(median)})
+    et au <strong>${dateDuJour(numeroActuel, dernier)}</strong>
+    (${quand(dernier)}). Nous sommes au jour ${jourActuel}, soit
+    ${jourActuel >= premier && jourActuel <= dernier
+      ? "à l'intérieur de cet intervalle"
+      : "en dehors de cet intervalle"}.</p>
+    <p style="color: var(--texte-doux)">Ces dates ne sont pas une projection du
+    creux à venir, et cette page n'en produit pas. Elles indiquent seulement
+    quand les cycles précédents ont touché le leur. Trois observations réparties
+    sur ${dernier - premier} jours ne définissent aucune fenêtre fiable : la
+    largeur de l'intervalle est ici un artefact du petit nombre de cycles, pas
+    une mesure d'incertitude. Le creux du cycle en cours peut se situer avant,
+    après, ou être déjà passé.</p>
+  `;
 }
 
 // --- Rappel dynamique lié à la sélection ------------------------------------
@@ -813,6 +1051,7 @@ function dessinerTout() {
   dessinerLecture();
   dessinerCreux();
   dessinerAvertissementSelection();
+  majBoutonZoom();
 }
 
 dessinerTout();
