@@ -55,15 +55,52 @@ ACTIFS = {
         "symbole": "XLM",
         "debut_donnees": "2015-09-30",
     },
+    # Indicateurs de marché : pas un actif mais deux séries construites, d'où
+    # "synthetique" (fetch_data.py les ignore, fetch_marche.py les produit).
+    "marche": {
+        "nom": "Marché",
+        "symbole": "BTC vs alts",
+        "debut_donnees": "2016-07-09",
+        "synthetique": True,
+        "metriques": ["dominance_base100", "dominance_btc",
+                      "ratio_base100", "ratio_eth_btc"],
+    },
 }
+
+# Métriques par défaut, pour les actifs qui n'en déclarent pas.
+METRIQUES_STANDARD = ["mvrv", "mayer_multiple", "drawdown_pct"]
+
+
+# Nombre de décimales conservées dans le fichier envoyé à la page. Inutile
+# d'embarquer plus de précision que ce qui sera affiché : le fichier est
+# téléchargé à chaque visite.
+PRECISION = {
+    "mvrv": 3,
+    "mayer_multiple": 3,
+    "drawdown_pct": 2,
+    "dominance_btc": 3,
+    "dominance_base100": 2,
+    "ratio_eth_btc": 6,
+    "ratio_base100": 2,
+}
+
+
+def metriques_de(actif):
+    return ACTIFS[actif].get("metriques", METRIQUES_STANDARD)
+
+
+def est_synthetique(actif):
+    return ACTIFS[actif].get("synthetique", False)
+
+
+def actifs_reels():
+    return {c: v for c, v in ACTIFS.items() if not est_synthetique(c)}
 
 # Les quatre métriques récupérées pour chaque actif. La capitalisation réalisée
 # (CapRealUSD) n'est plus gratuite depuis fin 2025 : on la reconstitue à partir
 # de la capitalisation de marché et du MVRV.
 METRIQUES_API = ["PriceUSD", "CapMrktCurUSD", "CapMVRVCur", "SplyCur"]
 
-# Métriques calculées ensuite, communes à tous les actifs.
-METRIQUES_CALCULEES = ["mvrv", "mayer_multiple", "drawdown_pct"]
 
 
 def fichier_metriques(actif):

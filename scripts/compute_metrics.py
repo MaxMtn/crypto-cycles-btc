@@ -14,7 +14,7 @@ l'interface.
 import csv
 from datetime import date
 
-from actifs import ACTIFS, fichier_cycles, fichier_metriques
+from actifs import actifs_reels, fichier_cycles, fichier_metriques
 
 SMA_WINDOW = 200
 
@@ -103,7 +103,7 @@ def traiter_actif(actif, config):
 
 
 def main():
-    for actif, config in ACTIFS.items():
+    for actif, config in actifs_reels().items():
         traiter_actif(actif, config)
 
 

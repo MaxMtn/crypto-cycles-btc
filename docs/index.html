@@ -335,10 +335,13 @@
 
 <div class="lecture" id="lecture"></div>
 
+<div id="section-creux">
 <h2>Creux de chaque cycle</h2>
 <table id="tableau-creux"></table>
 <p class="note" id="note-creux"></p>
+</div>
 
+<div id="section-repere">
 <h2>Quand les cycles précédents ont-ils touché leur creux ?</h2>
 
 <div class="groupe-reglage" style="margin-bottom: 4px">
@@ -352,6 +355,7 @@
 <p class="note" id="note-methodes"></p>
 
 <div class="lecture" id="fenetre-creux"></div>
+</div>
 
 <footer>
   <p>Données : Coin Metrics Community API (licence Creative Commons BY-NC 4.0,
@@ -381,7 +385,6 @@ document.write('<scr' + 'ipt src="data.js?t=' + Date.now() + '"></scr' + 'ipt>')
 // ---------------------------------------------------------------------------
 const METRIQUES = {
   mvrv: {
-    index: 1,
     titre: "MVRV",
     axe: "MVRV (capitalisation de marché / capitalisation réalisée)",
     formule: "= ce que valent tous les bitcoins aujourd'hui ÷ ce qu'ils valaient lors de leur dernier mouvement",
@@ -389,7 +392,6 @@ const METRIQUES = {
     format: v => v.toFixed(2),
   },
   mayer_multiple: {
-    index: 2,
     titre: "Mayer Multiple",
     axe: "Mayer Multiple (prix / moyenne 200 jours)",
     formule: "= prix du jour ÷ moyenne des 200 derniers jours",
@@ -397,14 +399,55 @@ const METRIQUES = {
     format: v => v.toFixed(2),
   },
   drawdown_pct: {
-    index: 3,
     titre: "Drawdown",
     axe: "Drawdown depuis le plus haut historique (%)",
     formule: "= écart entre le prix du jour et le plus haut atteint jusque-là",
     explication: "Mesure la baisse depuis le record précédent. 0 % signifie que le prix est sur un nouveau record ; −50 % qu'il a été divisé par deux depuis son plus haut.",
     format: v => v.toFixed(1) + " %",
   },
+
+  // --- Indicateurs de marché (actif « Marché » uniquement) ---
+  dominance_base100: {
+    titre: "Part du BTC (base 100)",
+    axe: "Part du BTC dans le panier, base 100 au halving",
+    formule: "= part du BTC aujourd'hui ÷ sa part le jour du halving × 100",
+    explication: "Suit la part du Bitcoin dans un panier figé de 11 actifs, ramenée à 100 le jour du halving. Au-dessus de 100, le Bitcoin a gagné du terrain sur les alts depuis le halving ; en dessous, il en a perdu — c'est ce qu'on appelle une saison des alts.",
+    format: v => v.toFixed(1),
+  },
+  dominance_btc: {
+    titre: "Part du BTC (brut)",
+    axe: "Part du BTC dans le panier (%)",
+    formule: "= capitalisation du BTC ÷ capitalisation des 11 actifs du panier",
+    explication: "La part brute, sans mise à l'échelle. Attention : son niveau n'est pas comparable d'un cycle à l'autre, car le panier est composé des survivants de 2016 qui ont décliné face au Bitcoin. Seuls les mouvements à l'intérieur d'un même cycle se lisent.",
+    format: v => v.toFixed(1) + " %",
+  },
+  ratio_base100: {
+    titre: "ETH/BTC (base 100)",
+    axe: "Ratio ETH/BTC, base 100 au halving",
+    formule: "= ratio ETH/BTC aujourd'hui ÷ ce ratio le jour du halving × 100",
+    explication: "Mesure la performance d'Ethereum face au Bitcoin depuis le halving. Au-dessus de 100, ETH a fait mieux que BTC ; en dessous, moins bien. C'est le baromètre le plus direct d'une rotation vers les alts.",
+    format: v => v.toFixed(1),
+  },
+  ratio_eth_btc: {
+    titre: "ETH/BTC (brut)",
+    axe: "Ratio ETH/BTC",
+    formule: "= prix de l'ETH ÷ prix du BTC",
+    explication: "Combien de bitcoins vaut un ether. Une hausse signifie qu'ETH progresse plus vite que BTC.",
+    format: v => v.toFixed(4),
+  },
 };
+
+// L'emplacement d'une métrique dans les points dépend de l'actif : chacun
+// déclare ses propres métriques, et l'ordre de cette liste fixe les positions.
+// Renvoie -1 si l'actif ne porte pas cette métrique.
+function indexMetrique(cle) {
+  const position = ACTIF.metriques.indexOf(cle);
+  return position === -1 ? -1 : position + 1;
+}
+
+function actifPorte(cle) {
+  return ACTIF.metriques.includes(cle);
+}
 
 // Marge gauche large : elle doit contenir à la fois le titre vertical de l'axe
 // et des étiquettes longues comme "-84.5 %", sans qu'ils se chevauchent.
@@ -450,6 +493,11 @@ function chargerActif(cle) {
   // Au départ, tous les cycles de référence de cet actif sont affichés.
   cyclesAffiches = new Set(ACTIF.reference_cycle_numbers);
   vue = { debut: 0, fin: jourMax };
+  // La métrique en cours peut ne pas exister sur le nouvel actif : on retombe
+  // alors sur sa première métrique.
+  if (!ACTIF.metriques.includes(metriqueChoisie)) {
+    metriqueChoisie = ACTIF.metriques[0];
+  }
 }
 
 function couleurCycle(n) {
@@ -510,15 +558,21 @@ function dessinerEnTete() {
 }
 
 // --- Boutons de sélection de la métrique -----------------------------------
+// Reconstruits à chaque changement d'actif : les indicateurs de marché n'ont
+// ni MVRV ni drawdown, mais une dominance et un ratio ETH/BTC.
 const onglets = document.getElementById("onglets");
-Object.entries(METRIQUES).forEach(([cle, conf]) => {
-  const bouton = document.createElement("button");
-  bouton.textContent = conf.titre;
-  bouton.setAttribute("role", "tab");
-  bouton.dataset.cle = cle;
-  bouton.onclick = () => { metriqueChoisie = cle; dessinerTout(); };
-  onglets.appendChild(bouton);
-});
+
+function construireBoutonsMetriques() {
+  onglets.innerHTML = "";
+  ACTIF.metriques.forEach(cle => {
+    const bouton = document.createElement("button");
+    bouton.textContent = METRIQUES[cle].titre;
+    bouton.setAttribute("role", "tab");
+    bouton.dataset.cle = cle;
+    bouton.onclick = () => { metriqueChoisie = cle; dessinerTout(); };
+    onglets.appendChild(bouton);
+  });
+}
 
 // --- Boutons de sélection de l'actif ----------------------------------------
 const boutonsActifs = document.getElementById("actifs");
@@ -529,6 +583,7 @@ Object.entries(DONNEES.actifs).forEach(([cle, data]) => {
   bouton.onclick = () => {
     if (cle === actifChoisi) return;
     chargerActif(cle);
+    construireBoutonsMetriques();
     construireBasculesCycles();
     dessinerTout();
   };
@@ -741,7 +796,7 @@ function statistiques(valeurs) {
 function dessinerGraphique() {
   const conf = METRIQUES[metriqueChoisie];
   const selection = cyclesSelectionnes();
-  const [min, max] = bornesMetrique(conf.index);
+  const [min, max] = bornesMetrique(indexMetrique(metriqueChoisie));
   const echelleY = fabriquerEchelleY(min, max);
   const svg = document.getElementById("graphique");
   const parties = [];
@@ -802,7 +857,7 @@ function dessinerGraphique() {
 
   // Bande de fourchette : rend la dispersion visible partout, pas seulement
   // à la date du jour.
-  const fourchette = calculerFourchette(selection, conf.index);
+  const fourchette = calculerFourchette(selection, indexMetrique(metriqueChoisie));
   if (fourchette.length) {
     let haut = "", bas = "";
     fourchette.forEach((e, i) => {
@@ -822,10 +877,10 @@ function dessinerGraphique() {
 
   // Courbes des cycles sélectionnés, puis du cycle en cours par-dessus.
   selection.forEach(n => {
-    const d = cheminDepuisPoints(ACTIF.cycles[n].points, conf.index, echelleY);
+    const d = cheminDepuisPoints(ACTIF.cycles[n].points, indexMetrique(metriqueChoisie), echelleY);
     parties.push(`<path class="ligne-historique" style="stroke: ${couleurCycle(n)}" d="${d}"></path>`);
   });
-  parties.push(`<path class="ligne-actuelle" d="${cheminDepuisPoints(cycleActuel.points, conf.index, echelleY)}"></path>`);
+  parties.push(`<path class="ligne-actuelle" d="${cheminDepuisPoints(cycleActuel.points, indexMetrique(metriqueChoisie), echelleY)}"></path>`);
 
   // Losange au creux de chaque cycle affiché. Le marqueur se place sur la
   // courbe de la métrique en cours d'affichage : il indique donc où en était
@@ -843,9 +898,9 @@ function dessinerGraphique() {
     // croire à un creux de cycle là où il n'y a qu'un bord de fenêtre.
     if (!creuxEstExploitable(n)) return;
     const creux = creuxDuCycle(n);
-    if (!creux || creux[conf.index] === null) return;
+    if (!creux || creux[indexMetrique(metriqueChoisie)] === null) return;
     const cx = echelleX(creux[0]);
-    const cy = echelleY(creux[conf.index]);
+    const cy = echelleY(creux[indexMetrique(metriqueChoisie)]);
     if (n === numeroActuel) {
       parties.push(`<path class="creux-provisoire" d="${losange(cx, cy, 5.5)}"></path>`);
     } else {
@@ -855,8 +910,8 @@ function dessinerGraphique() {
 
   // Point marquant la position d'aujourd'hui.
   const dernier = cycleActuel.points[cycleActuel.points.length - 1];
-  if (dernier[conf.index] !== null) {
-    parties.push(`<circle class="point-actuel" cx="${echelleX(dernier[0]).toFixed(1)}" cy="${echelleY(dernier[conf.index]).toFixed(1)}" r="5"></circle>`);
+  if (dernier[indexMetrique(metriqueChoisie)] !== null) {
+    parties.push(`<circle class="point-actuel" cx="${echelleX(dernier[0]).toFixed(1)}" cy="${echelleY(dernier[indexMetrique(metriqueChoisie)]).toFixed(1)}" r="5"></circle>`);
   }
 
   parties.push(`<line class="curseur" id="curseur" x1="0" y1="${MARGE.haut}" x2="0" y2="${HAUTEUR - MARGE.bas}" style="display:none"></line>`);
@@ -882,13 +937,13 @@ function dessinerGraphique() {
 // alors que le prix sort à peine du marché baissier précédent : le « prix le
 // plus bas » tomberait donc sur les tout premiers jours du cycle (jour 0 pour
 // les cycles 2012 et 2020), ce qui ne désigne aucun creux de marché.
-const INDEX_DRAWDOWN = METRIQUES.drawdown_pct.index;
+
 
 function creuxDuCycle(n) {
   let creux = null;
   ACTIF.cycles[n].points.forEach(p => {
-    if (p[INDEX_DRAWDOWN] === null) return;
-    if (creux === null || p[INDEX_DRAWDOWN] < creux[INDEX_DRAWDOWN]) creux = p;
+    if (p[indexMetrique("drawdown_pct")] === null) return;
+    if (creux === null || p[indexMetrique("drawdown_pct")] < creux[indexMetrique("drawdown_pct")]) creux = p;
   });
   return creux;
 }
@@ -1175,7 +1230,7 @@ function survol(evenement, svg) {
 
   const morceaux = [`Jour ${jour} :`];
   [...cyclesSelectionnes(), numeroActuel].forEach(n => {
-    const v = valeurAuJour(ACTIF.cycles[n].points, jour, conf.index);
+    const v = valeurAuJour(ACTIF.cycles[n].points, jour, indexMetrique(metriqueChoisie));
     morceaux.push(`${ACTIF.cycles[n].label} ${v === null ? "—" : conf.format(v)}`);
   });
   document.getElementById("infobulle").textContent = morceaux.join("  ·  ");
@@ -1192,10 +1247,11 @@ function dessinerTableau() {
   const selection = cyclesSelectionnes();
   const lignes = [`<tr><th>Métrique</th><th>Aujourd'hui</th><th>Cycles sélectionnés au même jour (min → max)</th><th>Médiane</th><th>Situation</th></tr>`];
 
-  Object.entries(METRIQUES).forEach(([cle, conf]) => {
+  ACTIF.metriques.forEach(cle => {
+    const conf = METRIQUES[cle];
     const position = ACTIF.position.metrics[cle];
     if (!position) return;
-    const stats = statistiques(valeursAuJourActuel(selection, conf.index));
+    const stats = statistiques(valeursAuJourActuel(selection, indexMetrique(cle)));
 
     let comparaison = "—", mediane = "—", situation = "aucun cycle sélectionné";
     if (stats) {
@@ -1228,7 +1284,7 @@ function dessinerLecture() {
   if (!position) { bloc.textContent = ""; return; }
 
   const selection = cyclesSelectionnes();
-  const stats = statistiques(valeursAuJourActuel(selection, conf.index));
+  const stats = statistiques(valeursAuJourActuel(selection, indexMetrique(metriqueChoisie)));
 
   let phrase;
   if (!stats) {
@@ -1262,6 +1318,15 @@ function dessinerLecture() {
 
 // --- Tableau des creux de cycle ---------------------------------------------
 function dessinerCreux() {
+  // Toute la notion de creux repose sur le drawdown. Les indicateurs de marché
+  // n'en ont pas : ces sections sont donc masquées plutôt que remplies de
+  // valeurs vides.
+  const pertinent = actifPorte("drawdown_pct");
+  ["section-creux", "section-repere"].forEach(id => {
+    document.getElementById(id).style.display = pertinent ? "" : "none";
+  });
+  if (!pertinent) return;
+
   const conf = METRIQUES.drawdown_pct;
   const creuxActuel = creuxDuCycle(numeroActuel);
   const jourCreuxActuel = creuxActuel[0];
@@ -1296,7 +1361,7 @@ function dessinerCreux() {
       <td><span style="color:${couleur}">●</span> ${ACTIF.cycles[n].label}</td>
       <td>jour ${creux[0]}</td>
       <td>${dateDuJour(n, creux[0])}</td>
-      <td>${conf.format(creux[INDEX_DRAWDOWN])}</td>
+      <td>${conf.format(creux[indexMetrique("drawdown_pct")])}</td>
       <td>${ecart}</td>
     </tr>`);
   });
@@ -1530,6 +1595,7 @@ function dessinerTout() {
 // boutons de cycles, eux-mêmes nécessaires au premier dessin.
 dessinerFraicheur();
 chargerActif(DONNEES.actif_par_defaut);
+construireBoutonsMetriques();
 construireBasculesCycles();
 dessinerTout();
 </script>

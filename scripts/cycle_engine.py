@@ -17,8 +17,7 @@ import csv
 import json
 import statistics
 
-from actifs import (ACTIFS, METRIQUES_CALCULEES, fichier_cycles,
-                    fichier_position)
+from actifs import ACTIFS, fichier_cycles, fichier_position, metriques_de
 
 # Fenêtre de tolérance (en jours) pour élargir l'échantillon autour de la même
 # phase de cycle : comparer uniquement le jour exact ne donnerait que 2 ou 3
@@ -132,7 +131,19 @@ def construire_avertissement(actif, config, reference_cycles, cycles_ecartes):
             f"{config['debut_donnees']} et ne les couvre pas entièrement."
         )
 
-    if actif != "btc":
+    if config.get("synthetique"):
+        texte += (
+            " Ces indicateurs reposent sur un panier figé de 11 actifs suivis "
+            "sans interruption depuis 2016, hors stablecoins et jetons "
+            "enveloppés. Ce panier ne représente pas tout le marché : il est "
+            "composé des survivants de 2016, et les alts qui ont dominé "
+            "ensuite (BNB, SOL, ADA...) n'y figurent pas. La part du Bitcoin "
+            "y dérive donc à la hausse pour une raison de composition, pas de "
+            "marché. Comparer la FORME à l'intérieur d'un cycle a du sens ; "
+            "comparer les NIVEAUX d'un cycle à l'autre n'en a pas, d'où "
+            "l'affichage en base 100 au halving."
+        )
+    elif actif != "btc":
         texte += (
             f" {config['nom']} n'a pas de halving : son cycle est ici aligné "
             "sur les halvings du Bitcoin, en supposant que celui-ci pilote le "
@@ -168,7 +179,7 @@ def traiter_actif(actif, config):
         print(f"  Cycles écartés (incomplets) : {sorted(cycles_ecartes)}")
 
     metrics_report = {}
-    for metric in METRIQUES_CALCULEES:
+    for metric in metriques_de(actif):
         current_value = to_float(latest_row[metric])
         metrics_report[metric] = build_metric_report(
             current_value, reference_cycles, day_offset, metric

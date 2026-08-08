@@ -41,6 +41,7 @@ jobs:
         run: |
           python scripts/fetch_data.py
           python scripts/compute_metrics.py
+          python scripts/fetch_marche.py
           python scripts/cycle_engine.py
           python scripts/build_web_data.py
 

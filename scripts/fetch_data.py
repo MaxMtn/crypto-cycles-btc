@@ -13,7 +13,7 @@ import csv
 import json
 import urllib.request
 
-from actifs import ACTIFS, METRIQUES_API, fichier_metriques
+from actifs import METRIQUES_API, actifs_reels, fichier_metriques
 
 API_URL = "https://community-api.coinmetrics.io/v4/timeseries/asset-metrics"
 
@@ -92,7 +92,9 @@ def traiter_actif(actif, config):
 
 
 def main():
-    for actif, config in ACTIFS.items():
+    # Les actifs synthétiques (indicateurs de marché) sont produits par
+    # fetch_marche.py, pas téléchargés tels quels.
+    for actif, config in actifs_reels().items():
         traiter_actif(actif, config)
 
 

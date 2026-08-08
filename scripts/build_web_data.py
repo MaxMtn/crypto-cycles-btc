@@ -18,8 +18,8 @@ import csv
 import json
 from datetime import datetime, timezone
 
-from actifs import (ACTIFS, METRIQUES_CALCULEES, RACINE, fichier_cycles,
-                    fichier_position)
+from actifs import (ACTIFS, PRECISION, RACINE, fichier_cycles,
+                    fichier_position, metriques_de)
 
 OUTPUT_FILE = RACINE / "docs" / "data.js"
 
@@ -49,8 +49,14 @@ def load_cycles(actif):
     return cycles
 
 
-def build_series(cycles):
-    """Pour chaque cycle : liste de points [jour, mvrv, mayer, drawdown].
+def build_series(cycles, metriques):
+    """Pour chaque cycle : liste de points [jour, puis une valeur par métrique,
+    dans l'ordre de `metriques`.
+
+    La page retrouve l'emplacement d'une métrique par sa position dans cette
+    liste, ce qui permet à chaque actif d'avoir les siennes : un actif classique
+    porte MVRV / Mayer / drawdown, les indicateurs de marché portent dominance
+    et ratio ETH/BTC.
 
     Le prix n'est pas embarqué : la page ne l'affiche nulle part et il pesait
     près d'un cinquième du fichier."""
@@ -58,15 +64,14 @@ def build_series(cycles):
     for n, rows in cycles.items():
         points = []
         for row in rows:
-            mvrv = to_float(row["mvrv"])
-            mayer = to_float(row["mayer_multiple"])
-            drawdown = to_float(row["drawdown_pct"])
-            points.append([
-                int(row["days_since_halving"]),
-                round(mvrv, 3) if mvrv is not None else None,
-                round(mayer, 3) if mayer is not None else None,
-                round(drawdown, 2) if drawdown is not None else None,
-            ])
+            point = [int(row["days_since_halving"])]
+            for metrique in metriques:
+                valeur = to_float(row.get(metrique))
+                point.append(
+                    round(valeur, PRECISION.get(metrique, 4))
+                    if valeur is not None else None
+                )
+            points.append(point)
         series[n] = {
             "label": HALVING_LABELS.get(n, f"Cycle {n}"),
             "start_date": rows[0]["date"],
@@ -86,7 +91,8 @@ def construire_actif(actif, config):
     # chiffres calculés côté Python parlent des mêmes cycles.
     references = position["reference_cycles_used"]
 
-    series = build_series(cycles)
+    metriques = metriques_de(actif)
+    series = build_series(cycles, metriques)
     # Les cycles écartés sont retirés des séries : les afficher laisserait
     # croire qu'ils sont comparables alors qu'ils sont tronqués.
     for n in position.get("reference_cycles_excluded", []):
@@ -95,6 +101,7 @@ def construire_actif(actif, config):
     return {
         "nom": config["nom"],
         "symbole": config["symbole"],
+        "metriques": metriques,
         "cycles": series,
         "current_cycle_number": numero_actuel,
         "reference_cycle_numbers": references,

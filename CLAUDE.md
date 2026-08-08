@@ -150,10 +150,37 @@ Deux limites propres à ETH, visibles dans l'interface :
   refuse de calculer un repère théorique plutôt que d'en produire un absurde.
   Ne pas « corriger » ce comportement : c'est une limite réelle de la méthode.
 
-*Altcoins : à faire.* Proxys de cycle prévus : dominance BTC, ratio ETH/BTC,
-drawdown depuis l'ATH, force relative vs BTC. Attention au biais de survivance :
-une dominance calculée sur les actifs vivants aujourd'hui surestime
-mécaniquement la part du BTC dans le passé.
+*Altcoins : fait le 2026-08-08.* Traitement complet (et non de simples proxys)
+pour LTC, XRP, DOGE, XLM : quatre métriques disponibles et deux cycles BTC
+entiers couverts. Écartés faute d'un second cycle de référence : ADA, BCH,
+LINK, ETC. Écarté faute de MVRV : XMR.
+
+Limite découverte : beaucoup d'altcoins ont touché leur point bas au krach de
+mars 2020, que l'alignement sur les halvings place à la fin d'un cycle pour les
+uns, au début du suivant pour les autres. XRP annonçait un creux 1276 jours
+avant le début du cycle en cours. Deux garde-fous dans la page : un repère
+antérieur au cycle est refusé, et des creux étalés sur plus d'un quart de la
+durée du cycle (`DISPERSION_MAXIMALE`) sont considérés comme ne décrivant pas
+la même phase. Seuls BTC et LTC produisent un repère aujourd'hui.
+
+*Indicateurs de marché : fait le 2026-08-08.* Actif synthétique « Marché »
+(scripts/fetch_marche.py) : part du BTC dans un panier figé, et ratio ETH/BTC,
+chacun en brut et en base 100 au halving.
+
+Le biais de survivance redouté s'est révélé secondaire — Coin Metrics conserve
+les séries arrêtées. Le vrai problème est ailleurs : sa **couverture** démarre
+et s'arrête à des dates arbitraires (BNB s'arrête en 2019, DOT et XTZ en 2022,
+alors que ces projets vivent), si bien qu'une dominance calculée sur tous les
+actifs bondirait à chaque sortie du panier. D'où un **panier figé de 11 actifs**
+couverts sans interruption depuis juillet 2016, hors stablecoins (hors cycle) et
+hors jetons enveloppés (double comptage).
+
+Limite à conserver affichée : ce panier est composé des survivants de 2016, et
+les alts qui ont dominé ensuite (BNB, SOL, ADA) n'y figurent pas. La part du BTC
+y dérive à la hausse pour une raison de composition, pas de marché — d'où
+l'affichage en base 100 au halving, seul comparable d'un cycle à l'autre. Ne pas
+présenter ces chiffres comme « la dominance du Bitcoin » : c'est la part du BTC
+dans un panier précis.
 
 Pour ajouter un actif : vérifier sa couverture Coin Metrics, puis ajouter une
 ligne dans `scripts/actifs.py`. Rien d'autre à modifier.
