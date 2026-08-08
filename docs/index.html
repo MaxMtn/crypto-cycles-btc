@@ -301,6 +301,10 @@
 
 <div class="barre-reglages">
   <div class="groupe-reglage">
+    <span class="intitule">Actif</span>
+    <div class="boutons onglets" id="actifs"></div>
+  </div>
+  <div class="groupe-reglage">
     <span class="intitule">Métrique</span>
     <div class="boutons onglets" id="onglets" role="tablist"></div>
   </div>
@@ -423,26 +427,38 @@ const FENETRE_LISSAGE = 10;
 const MS_PAR_JOUR = 86400000;
 const enDate = texte => new Date(texte + "T00:00:00Z");
 
-const numeroActuel = DONNEES.current_cycle_number;
-const cycleActuel = DONNEES.cycles[numeroActuel];
-const jourActuel = DONNEES.position.current_cycle.days_since_halving;
+// --- Actif affiché -----------------------------------------------------------
+// Tout ce qui suit dépend de l'actif sélectionné. Ces variables sont
+// recalculées à chaque changement d'actif par chargerActif(), car le nombre de
+// cycles, leur longueur et la position actuelle diffèrent d'un actif à
+// l'autre : Ethereum n'a que deux cycles de référence là où Bitcoin en a trois.
+let actifChoisi = DONNEES.actif_par_defaut;
+let ACTIF, numeroActuel, cycleActuel, jourActuel, jourMax, cyclesAffiches;
 
 let metriqueChoisie = "drawdown_pct";
-// Au départ, tous les cycles de référence sont affichés.
-let cyclesAffiches = new Set(DONNEES.reference_cycle_numbers);
+
+function chargerActif(cle) {
+  actifChoisi = cle;
+  ACTIF = DONNEES.actifs[cle];
+  numeroActuel = ACTIF.current_cycle_number;
+  cycleActuel = ACTIF.cycles[numeroActuel];
+  jourActuel = ACTIF.position.current_cycle.days_since_halving;
+  // Le jour le plus lointain affiché : le plus long des cycles connus.
+  jourMax = Math.max(
+    ...Object.values(ACTIF.cycles).map(c => c.points[c.points.length - 1][0])
+  );
+  // Au départ, tous les cycles de référence de cet actif sont affichés.
+  cyclesAffiches = new Set(ACTIF.reference_cycle_numbers);
+  vue = { debut: 0, fin: jourMax };
+}
 
 function couleurCycle(n) {
   return `var(--cycle-${n})`;
 }
 function cyclesSelectionnes() {
   // Toujours dans le même ordre, pour que couleurs et légende soient stables.
-  return DONNEES.reference_cycle_numbers.filter(n => cyclesAffiches.has(n));
+  return ACTIF.reference_cycle_numbers.filter(n => cyclesAffiches.has(n));
 }
-
-// Le jour le plus lointain affiché : le plus long des cycles connus.
-const jourMax = Math.max(
-  ...Object.values(DONNEES.cycles).map(c => c.points[c.points.length - 1][0])
-);
 
 // --- Fraîcheur des données --------------------------------------------------
 // La page ne connaît pas la date du jour côté données : elle affiche ce qui a
@@ -457,7 +473,7 @@ function formaterDateFr(texte) {
 }
 
 function dessinerFraicheur() {
-  const dernierJour = DONNEES.dernier_jour_donnees || DONNEES.position.generated_date;
+  const dernierJour = DONNEES.dernier_jour_donnees || ACTIF.position.generated_date;
   const bloc = document.getElementById("fraicheur");
 
   const maintenant = new Date();
@@ -485,10 +501,13 @@ function dessinerFraicheur() {
 }
 
 // --- Textes d'en-tête ------------------------------------------------------
-dessinerFraicheur();
-document.getElementById("sous-titre").textContent =
-  `Jour ${jourActuel} après le halving de 2024.`;
-document.getElementById("texte-avertissement").textContent = DONNEES.position.caveat;
+// Dépendent de l'actif : le nombre de cycles de référence et donc le texte
+// d'avertissement ne sont pas les mêmes pour Bitcoin et pour Ethereum.
+function dessinerEnTete() {
+  document.getElementById("sous-titre").textContent =
+    `${ACTIF.nom} — jour ${jourActuel} après le halving de 2024.`;
+  document.getElementById("texte-avertissement").textContent = ACTIF.position.caveat;
+}
 
 // --- Boutons de sélection de la métrique -----------------------------------
 const onglets = document.getElementById("onglets");
@@ -501,36 +520,59 @@ Object.entries(METRIQUES).forEach(([cle, conf]) => {
   onglets.appendChild(bouton);
 });
 
-// --- Boutons d'affichage des cycles ----------------------------------------
-const bascules = document.getElementById("bascules");
-DONNEES.reference_cycle_numbers.forEach(n => {
+// --- Boutons de sélection de l'actif ----------------------------------------
+const boutonsActifs = document.getElementById("actifs");
+Object.entries(DONNEES.actifs).forEach(([cle, data]) => {
   const bouton = document.createElement("button");
-  bouton.className = "bascule";
-  bouton.dataset.cycle = n;
-  bouton.style.setProperty("--couleur-cycle", couleurCycle(n));
-  bouton.innerHTML = `<i class="pastille"></i>${DONNEES.cycles[n].label}`;
+  bouton.textContent = `${data.nom} (${data.symbole})`;
+  bouton.dataset.actif = cle;
   bouton.onclick = () => {
-    if (cyclesAffiches.has(n)) cyclesAffiches.delete(n);
-    else cyclesAffiches.add(n);
+    if (cle === actifChoisi) return;
+    chargerActif(cle);
+    construireBasculesCycles();
     dessinerTout();
   };
-  bascules.appendChild(bouton);
+  boutonsActifs.appendChild(bouton);
 });
 
-const lienTous = document.createElement("button");
-lienTous.className = "lien-rapide";
-lienTous.textContent = "tout afficher";
-lienTous.onclick = () => {
-  cyclesAffiches = new Set(DONNEES.reference_cycle_numbers);
-  dessinerTout();
-};
-bascules.appendChild(lienTous);
+// --- Boutons d'affichage des cycles ----------------------------------------
+// Reconstruits à chaque changement d'actif : le nombre de cycles de référence
+// n'est pas le même partout (trois pour Bitcoin, deux pour Ethereum dont
+// l'historique ne couvre pas le cycle 2012).
+const bascules = document.getElementById("bascules");
 
-const lienAucun = document.createElement("button");
-lienAucun.className = "lien-rapide";
-lienAucun.textContent = "tout masquer";
-lienAucun.onclick = () => { cyclesAffiches = new Set(); dessinerTout(); };
-bascules.appendChild(lienAucun);
+function construireBasculesCycles() {
+  bascules.innerHTML = "";
+
+  ACTIF.reference_cycle_numbers.forEach(n => {
+    const bouton = document.createElement("button");
+    bouton.className = "bascule";
+    bouton.dataset.cycle = n;
+    bouton.style.setProperty("--couleur-cycle", couleurCycle(n));
+    bouton.innerHTML = `<i class="pastille"></i>${ACTIF.cycles[n].label}`;
+    bouton.onclick = () => {
+      if (cyclesAffiches.has(n)) cyclesAffiches.delete(n);
+      else cyclesAffiches.add(n);
+      dessinerTout();
+    };
+    bascules.appendChild(bouton);
+  });
+
+  const lienTous = document.createElement("button");
+  lienTous.className = "lien-rapide";
+  lienTous.textContent = "tout afficher";
+  lienTous.onclick = () => {
+    cyclesAffiches = new Set(ACTIF.reference_cycle_numbers);
+    dessinerTout();
+  };
+  bascules.appendChild(lienTous);
+
+  const lienAucun = document.createElement("button");
+  lienAucun.className = "lien-rapide";
+  lienAucun.textContent = "tout masquer";
+  lienAucun.onclick = () => { cyclesAffiches = new Set(); dessinerTout(); };
+  bascules.appendChild(lienAucun);
+}
 
 // Les boutons de choix de la méthode sont créés plus bas, une fois
 // METHODES_REPERE défini.
@@ -542,7 +584,9 @@ const boutonsMethodes = document.getElementById("methodes");
 // glisser. On ne descend pas sous 40 jours affichés, en dessous le graphique
 // n'apprend plus rien.
 const ZOOM_MINIMUM_JOURS = 40;
-let vue = { debut: 0, fin: jourMax };
+// Valeur provisoire : chargerActif() la remplace par l'étendue réelle de
+// l'actif sélectionné avant le premier dessin.
+let vue = { debut: 0, fin: 0 };
 
 function vueEstInitiale() {
   return vue.debut === 0 && vue.fin === jourMax;
@@ -578,7 +622,7 @@ function bornesMetrique(index) {
   // affichée, sont ignorés. Le graphique se recadre donc quand on zoome.
   let min = Infinity, max = -Infinity;
   [...cyclesSelectionnes(), numeroActuel].forEach(n => {
-    DONNEES.cycles[n].points.forEach(p => {
+    ACTIF.cycles[n].points.forEach(p => {
       if (p[0] < vue.debut || p[0] > vue.fin) return;
       const v = p[index];
       if (v === null) return;
@@ -620,7 +664,7 @@ function calculerFourchette(numeros, index) {
 
   const parCycle = numeros.map(n => {
     const valeurs = new Map();
-    DONNEES.cycles[n].points.forEach(p => {
+    ACTIF.cycles[n].points.forEach(p => {
       if (p[index] !== null) valeurs.set(p[0], p[index]);
     });
     return valeurs;
@@ -663,7 +707,7 @@ function calculerFourchette(numeros, index) {
 function valeursAuJourActuel(numeros, index) {
   const valeurs = {};
   numeros.forEach(n => {
-    const point = DONNEES.cycles[n].points.find(p => p[0] === jourActuel);
+    const point = ACTIF.cycles[n].points.find(p => p[0] === jourActuel);
     if (point && point[index] !== null) valeurs[n] = point[index];
   });
   return valeurs;
@@ -778,7 +822,7 @@ function dessinerGraphique() {
 
   // Courbes des cycles sélectionnés, puis du cycle en cours par-dessus.
   selection.forEach(n => {
-    const d = cheminDepuisPoints(DONNEES.cycles[n].points, conf.index, echelleY);
+    const d = cheminDepuisPoints(ACTIF.cycles[n].points, conf.index, echelleY);
     parties.push(`<path class="ligne-historique" style="stroke: ${couleurCycle(n)}" d="${d}"></path>`);
   });
   parties.push(`<path class="ligne-actuelle" d="${cheminDepuisPoints(cycleActuel.points, conf.index, echelleY)}"></path>`);
@@ -795,6 +839,9 @@ function dessinerGraphique() {
   };
 
   [...selection, numeroActuel].forEach(n => {
+    // Les creux hors fenêtre ne sont pas marqués : le losange laisserait
+    // croire à un creux de cycle là où il n'y a qu'un bord de fenêtre.
+    if (!creuxEstExploitable(n)) return;
     const creux = creuxDuCycle(n);
     if (!creux || creux[conf.index] === null) return;
     const cx = echelleX(creux[0]);
@@ -839,19 +886,40 @@ const INDEX_DRAWDOWN = METRIQUES.drawdown_pct.index;
 
 function creuxDuCycle(n) {
   let creux = null;
-  DONNEES.cycles[n].points.forEach(p => {
+  ACTIF.cycles[n].points.forEach(p => {
     if (p[INDEX_DRAWDOWN] === null) return;
     if (creux === null || p[INDEX_DRAWDOWN] < creux[INDEX_DRAWDOWN]) creux = p;
   });
   return creux;
 }
 
-// Jours de creux des cycles de référence actuellement affichés.
+// Un creux qui tombe sur le premier jour d'un cycle ne désigne pas un creux :
+// il signale que le vrai point bas est ANTÉRIEUR à la fenêtre observée. Le cas
+// se produit dès qu'on aligne un actif sur les halvings du Bitcoin sans que
+// son cycle propre y corresponde — Ethereum a touché son point bas en mars
+// 2020, deux mois avant le halving de mai 2020, si bien que le minimum de la
+// fenêtre est son tout premier jour. Utiliser un tel creux produirait des
+// repères absurdes, situés dans le passé.
+const MARGE_BORD_CREUX = 5;
+
+function creuxEstExploitable(n) {
+  const creux = creuxDuCycle(n);
+  if (!creux) return false;
+  const points = ACTIF.cycles[n].points;
+  const premierJour = points[0][0];
+  if (creux[0] <= premierJour + MARGE_BORD_CREUX) return false;
+  // Pour le cycle en cours, la fin n'est pas une borne de cycle mais la date
+  // du jour : un creux récent y est légitime, seulement provisoire.
+  if (n === numeroActuel) return true;
+  const dernierJour = points[points.length - 1][0];
+  return creux[0] < dernierJour - MARGE_BORD_CREUX;
+}
+
+// Jours de creux des cycles de référence affichés, limités aux exploitables.
 function joursCreuxAffiches() {
   return cyclesSelectionnes()
-    .map(n => creuxDuCycle(n))
-    .filter(Boolean)
-    .map(c => c[0])
+    .filter(creuxEstExploitable)
+    .map(n => creuxDuCycle(n)[0])
     .sort((a, b) => a - b);
 }
 
@@ -860,11 +928,11 @@ function joursCreuxAffiches() {
 // une tendance n'ont de sens que dans le sens du temps.
 function creuxAffiches() {
   return cyclesSelectionnes()
+    .filter(creuxEstExploitable)
     .map(n => {
       const creux = creuxDuCycle(n);
-      return creux ? { cycle: n, jour: creux[0], date: dateDuJour(n, creux[0]) } : null;
-    })
-    .filter(Boolean);
+      return { cycle: n, jour: creux[0], date: dateDuJour(n, creux[0]) };
+    });
 }
 
 // Les différentes façons de calculer un repère de creux. Aucune n'est plus
@@ -911,7 +979,7 @@ const METHODES_REPERE = {
       for (let i = 1; i < dates.length; i++) total += (dates[i] - dates[i - 1]) / MS_PAR_JOUR;
       const intervalleMoyen = total / (dates.length - 1);
       const projetee = new Date(dates[dates.length - 1].getTime() + intervalleMoyen * MS_PAR_JOUR);
-      return (projetee - enDate(DONNEES.cycles[numeroActuel].start_date)) / MS_PAR_JOUR;
+      return (projetee - enDate(ACTIF.cycles[numeroActuel].start_date)) / MS_PAR_JOUR;
     },
   },
   dernier_ecart: {
@@ -950,7 +1018,7 @@ function jourRepereTheorique(methode = methodeChoisie) {
 
 // Date réelle correspondant au Nième jour d'un cycle.
 function dateDuJour(n, jour) {
-  const date = new Date(DONNEES.cycles[n].start_date + "T00:00:00Z");
+  const date = new Date(ACTIF.cycles[n].start_date + "T00:00:00Z");
   date.setUTCDate(date.getUTCDate() + jour);
   return date.toISOString().slice(0, 10);
 }
@@ -971,7 +1039,7 @@ function dessinerLegende() {
     `<span><i class="puce" style="background: var(--actuel)"></i> ${cycleActuel.label}</span>`,
   ];
   cyclesSelectionnes().forEach(n => {
-    morceaux.push(`<span><i class="puce" style="background: ${couleurCycle(n)}"></i> ${DONNEES.cycles[n].label}</span>`);
+    morceaux.push(`<span><i class="puce" style="background: ${couleurCycle(n)}"></i> ${ACTIF.cycles[n].label}</span>`);
   });
   morceaux.push(`<span><svg width="12" height="12" viewBox="0 0 12 12" style="flex:none"><path d="M6 1 L11 6 L6 11 L1 6 Z" fill="var(--texte-doux)"></path></svg> Creux du cycle (drawdown le plus profond)</span>`);
   if (cyclesSelectionnes().length >= 2) {
@@ -1088,8 +1156,8 @@ function survol(evenement, svg) {
 
   const morceaux = [`Jour ${jour} :`];
   [...cyclesSelectionnes(), numeroActuel].forEach(n => {
-    const v = valeurAuJour(DONNEES.cycles[n].points, jour, conf.index);
-    morceaux.push(`${DONNEES.cycles[n].label} ${v === null ? "—" : conf.format(v)}`);
+    const v = valeurAuJour(ACTIF.cycles[n].points, jour, conf.index);
+    morceaux.push(`${ACTIF.cycles[n].label} ${v === null ? "—" : conf.format(v)}`);
   });
   document.getElementById("infobulle").textContent = morceaux.join("  ·  ");
 }
@@ -1106,7 +1174,7 @@ function dessinerTableau() {
   const lignes = [`<tr><th>Métrique</th><th>Aujourd'hui</th><th>Cycles sélectionnés au même jour (min → max)</th><th>Médiane</th><th>Situation</th></tr>`];
 
   Object.entries(METRIQUES).forEach(([cle, conf]) => {
-    const position = DONNEES.position.metrics[cle];
+    const position = ACTIF.position.metrics[cle];
     if (!position) return;
     const stats = statistiques(valeursAuJourActuel(selection, conf.index));
 
@@ -1136,7 +1204,7 @@ function dessinerTableau() {
 // --- Texte de lecture, volontairement descriptif et non prédictif -----------
 function dessinerLecture() {
   const conf = METRIQUES[metriqueChoisie];
-  const position = DONNEES.position.metrics[metriqueChoisie];
+  const position = ACTIF.position.metrics[metriqueChoisie];
   const bloc = document.getElementById("lecture");
   if (!position) { bloc.textContent = ""; return; }
 
@@ -1191,7 +1259,11 @@ function dessinerCreux() {
     if (!creux) return;
 
     let ecart;
-    if (n === numeroActuel) {
+    if (!creuxEstExploitable(n)) {
+      // Creux collé au bord de la fenêtre : le vrai point bas est antérieur au
+      // cycle, on ne peut rien en tirer.
+      ecart = "hors fenêtre — non exploitable";
+    } else if (n === numeroActuel) {
       ecart = "— (référence, provisoire)";
     } else {
       const difference = creux[0] - jourCreuxActuel;
@@ -1202,7 +1274,7 @@ function dessinerCreux() {
 
     const couleur = n === numeroActuel ? "var(--actuel)" : couleurCycle(n);
     lignes.push(`<tr>
-      <td><span style="color:${couleur}">●</span> ${DONNEES.cycles[n].label}</td>
+      <td><span style="color:${couleur}">●</span> ${ACTIF.cycles[n].label}</td>
       <td>jour ${creux[0]}</td>
       <td>${dateDuJour(n, creux[0])}</td>
       <td>${conf.format(creux[INDEX_DRAWDOWN])}</td>
@@ -1248,8 +1320,28 @@ function dessinerFenetreCreux() {
     document.getElementById("repere-theorique").innerHTML = "";
     document.getElementById("comparaison-methodes").innerHTML = "";
     document.getElementById("note-methodes").innerHTML = "";
-    bloc.innerHTML = `<p>Affichez au moins deux cycles de référence pour situer
-      leurs creux sur le calendrier du cycle en cours.</p>`;
+
+    // Deux causes très différentes : soit trop peu de cycles sont affichés,
+    // soit leurs creux tombent hors de la fenêtre d'observation. Le second cas
+    // n'est pas un réglage à corriger, c'est une limite de la méthode.
+    const affiches = cyclesSelectionnes().length;
+    const inexploitables = cyclesSelectionnes().filter(n => !creuxEstExploitable(n));
+
+    if (affiches >= 2 && inexploitables.length) {
+      const noms = inexploitables.map(n => ACTIF.cycles[n].label).join(", ");
+      bloc.innerHTML = `<p>Aucun repère ne peut être calculé pour
+        ${ACTIF.nom} : le creux de ${noms} tombe au tout début de la fenêtre
+        d'observation, ce qui signifie que le véritable point bas est
+        <strong>antérieur au halving</strong> qui sert d'ancrage. ${ACTIF.nom}
+        n'ayant pas de halving propre, son cycle est aligné sur celui du
+        Bitcoin, et cet alignement ne tombe pas juste ici.</p>
+        <p style="color: var(--texte-doux)">Ce n'est pas un réglage à corriger
+        mais une limite de la méthode, affichée plutôt que masquée. Il reste
+        moins de deux creux exploitables, donc rien à comparer.</p>`;
+    } else {
+      bloc.innerHTML = `<p>Affichez au moins deux cycles de référence pour situer
+        leurs creux sur le calendrier du cycle en cours.</p>`;
+    }
     return;
   }
 
@@ -1339,7 +1431,7 @@ function dessinerComparaisonMethodes() {
 // --- Rappel dynamique lié à la sélection ------------------------------------
 function dessinerAvertissementSelection() {
   const nombre = cyclesSelectionnes().length;
-  const total = DONNEES.reference_cycle_numbers.length;
+  const total = ACTIF.reference_cycle_numbers.length;
   const bloc = document.getElementById("avertissement-selection");
 
   if (nombre === total) { bloc.textContent = ""; return; }
@@ -1365,6 +1457,10 @@ function dessinerTout() {
   [...boutonsMethodes.children].forEach(b => {
     b.setAttribute("aria-selected", b.dataset.methode === methodeChoisie);
   });
+  [...boutonsActifs.children].forEach(b => {
+    b.setAttribute("aria-selected", b.dataset.actif === actifChoisi);
+  });
+  dessinerEnTete();
   dessinerDefinition();
   dessinerGraphique();
   dessinerLegende();
@@ -1375,6 +1471,12 @@ function dessinerTout() {
   majBoutonZoom();
 }
 
+// --- Démarrage ---------------------------------------------------------------
+// L'ordre compte : charger l'actif renseigne les variables dont dépendent les
+// boutons de cycles, eux-mêmes nécessaires au premier dessin.
+dessinerFraicheur();
+chargerActif(DONNEES.actif_par_defaut);
+construireBasculesCycles();
 dessinerTout();
 </script>
 

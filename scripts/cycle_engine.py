@@ -1,12 +1,13 @@
 """
-Moteur de cycles : situe la position actuelle du Bitcoin par rapport aux cycles
-historiques complets, à la même phase (même nombre de jours depuis le halving).
+Moteur de cycles : situe la position actuelle de chaque actif par rapport aux
+cycles historiques complets, à la même phase (même nombre de jours depuis le
+halving Bitcoin).
 
-Ne fait aucun appel réseau : tout est calculé localement à partir de
-data/btc_cycles.csv. Écrit data/current_position.json, utilisé plus tard par
-la page web.
+Ne fait aucun appel réseau : tout est calculé localement à partir des fichiers
+produits par compute_metrics.py. Écrit un fichier de position par actif.
 
-Règles épistémiques (voir CLAUDE.md) : on ne dispose que de 3 cycles complets.
+Règles épistémiques (voir CLAUDE.md) : on ne dispose que de très peu de cycles
+complets — 3 pour Bitcoin, 2 pour Ethereum dont l'historique commence en 2015.
 Toute statistique dérivée est donc fragile. On affiche systématiquement la
 fourchette (min/médiane/max) et jamais un chiffre unique présenté comme
 certain. Aucune prédiction de date ou de prix.
@@ -15,22 +16,19 @@ certain. Aucune prédiction de date ou de prix.
 import csv
 import json
 import statistics
-from pathlib import Path
 
-INPUT_FILE = Path(__file__).resolve().parent.parent / "data" / "btc_cycles.csv"
-OUTPUT_FILE = Path(__file__).resolve().parent.parent / "data" / "current_position.json"
+from actifs import (ACTIFS, METRIQUES_CALCULEES, fichier_cycles,
+                    fichier_position)
 
 # Fenêtre de tolérance (en jours) pour élargir l'échantillon autour de la même
-# phase de cycle : comparer uniquement le jour exact ne donnerait que 3 valeurs
-# possibles (une par cycle), on assouplit donc un peu pour avoir une lecture
-# moins grossière, sans s'éloigner de "la même phase".
+# phase de cycle : comparer uniquement le jour exact ne donnerait que 2 ou 3
+# valeurs possibles (une par cycle), on assouplit donc un peu pour avoir une
+# lecture moins grossière, sans s'éloigner de "la même phase".
 WINDOW_DAYS = 14
 
-METRICS = ["mvrv", "mayer_multiple", "drawdown_pct"]
 
-
-def load_rows():
-    with open(INPUT_FILE, newline="") as f:
+def load_rows(actif):
+    with open(fichier_cycles(actif), newline="") as f:
         rows = list(csv.DictReader(f))
     rows.sort(key=lambda r: r["date"])
     return rows
@@ -50,6 +48,15 @@ def group_by_cycle(rows):
         n = int(row["halving_number"])
         cycles.setdefault(n, []).append(row)
     return cycles
+
+
+def cycle_est_complet(cycle_rows):
+    """Un cycle n'est utilisable comme référence que s'il commence bien au jour
+    du halving. Sinon l'actif n'existait pas encore, ou ses données commencent
+    en cours de route : sa courbe serait tronquée et comparée à tort à des
+    cycles entiers. C'est le cas d'Ethereum sur le cycle 2012, couvert à 25 %
+    seulement."""
+    return int(cycle_rows[0]["days_since_halving"]) == 0
 
 
 def value_at_day_offset(cycle_rows, day_offset, metric):
@@ -104,58 +111,98 @@ def build_metric_report(current_value, reference_cycles, day_offset, metric):
     }
 
 
-def main():
-    print("Lecture de data/btc_cycles.csv...")
-    rows = load_rows()
+def construire_avertissement(actif, config, reference_cycles, cycles_ecartes):
+    nombre = len(reference_cycles)
+    texte = (
+        f"Comparaison basée sur seulement {nombre} "
+        f"cycle{'s' if nombre > 1 else ''} historique{'s' if nombre > 1 else ''} "
+        f"complet{'s' if nombre > 1 else ''} : chaque écart peut refléter le "
+        "hasard autant qu'un signal réel. Le cycle actuel diffère "
+        "structurellement des précédents (ETF spot, flux institutionnels, "
+        "contexte de taux) : ne pas traiter l'historique comme un gabarit "
+        "fiable. Ceci n'est pas une prédiction."
+    )
+
+    if cycles_ecartes:
+        liste = ", ".join(str(n) for n in sorted(cycles_ecartes))
+        texte += (
+            f" Le{'s' if len(cycles_ecartes) > 1 else ''} cycle{'s' if len(cycles_ecartes) > 1 else ''} "
+            f"{liste} {'sont écartés' if len(cycles_ecartes) > 1 else 'est écarté'} "
+            f"de la comparaison : l'historique de {config['nom']} commence le "
+            f"{config['debut_donnees']} et ne les couvre pas entièrement."
+        )
+
+    if actif != "btc":
+        texte += (
+            f" {config['nom']} n'a pas de halving : son cycle est ici aligné "
+            "sur les halvings du Bitcoin, en supposant que celui-ci pilote le "
+            "reste du marché. C'est une hypothèse de lecture, pas un fait."
+        )
+
+    return texte
+
+
+def traiter_actif(actif, config):
+    print(f"{config['nom']} ({actif.upper()}) :")
+    rows = load_rows(actif)
     cycles = group_by_cycle(rows)
 
     current_cycle_number = max(cycles.keys())
     current_cycle_rows = cycles[current_cycle_number]
-    reference_cycles = {n: r for n, r in cycles.items() if n != current_cycle_number}
+
+    reference_cycles, cycles_ecartes = {}, []
+    for n, cycle_rows in cycles.items():
+        if n == current_cycle_number:
+            continue
+        if cycle_est_complet(cycle_rows):
+            reference_cycles[n] = cycle_rows
+        else:
+            cycles_ecartes.append(n)
 
     latest_row = current_cycle_rows[-1]
     day_offset = int(latest_row["days_since_halving"])
 
-    print(f"Position actuelle : cycle {current_cycle_number}, "
-          f"jour {day_offset} après le halving.")
-    print(f"Cycles de référence (complets) : {sorted(reference_cycles.keys())}")
+    print(f"  Position : cycle {current_cycle_number}, jour {day_offset} après le halving.")
+    print(f"  Cycles de référence complets : {sorted(reference_cycles.keys())}")
+    if cycles_ecartes:
+        print(f"  Cycles écartés (incomplets) : {sorted(cycles_ecartes)}")
 
     metrics_report = {}
-    for metric in METRICS:
+    for metric in METRIQUES_CALCULEES:
         current_value = to_float(latest_row[metric])
         metrics_report[metric] = build_metric_report(
             current_value, reference_cycles, day_offset, metric
         )
 
     result = {
+        "asset": actif,
+        "asset_name": config["nom"],
         "generated_date": latest_row["date"],
         "current_cycle": {
             "halving_number": current_cycle_number,
             "days_since_halving": day_offset,
         },
         "reference_cycles_used": sorted(reference_cycles.keys()),
-        "caveat": (
-            "Comparaison basée sur seulement "
-            f"{len(reference_cycles)} cycles historiques complets : chaque écart "
-            "peut refléter le hasard autant qu'un signal réel. Le cycle actuel "
-            "diffère structurellement des précédents (ETF spot, flux "
-            "institutionnels, contexte de taux) : ne pas traiter l'historique "
-            "comme un gabarit fiable. Ceci n'est pas une prédiction."
-        ),
+        "reference_cycles_excluded": sorted(cycles_ecartes),
+        "caveat": construire_avertissement(actif, config, reference_cycles, cycles_ecartes),
         "metrics": metrics_report,
     }
 
-    with open(OUTPUT_FILE, "w") as f:
+    destination = fichier_position(actif)
+    with open(destination, "w") as f:
         json.dump(result, f, indent=2, ensure_ascii=False)
 
-    print(f"Terminé : résultat enregistré dans {OUTPUT_FILE}")
-    print()
-    print("--- Résumé lisible ---")
+    print(f"  Terminé : {destination}")
     for metric, report in metrics_report.items():
-        print(f"{metric} : valeur actuelle = {report['current_value']}, "
-              f"cycles précédents à ce stade (min/médiane/max) = "
+        print(f"    {metric} : actuel = {report['current_value']}, "
+              f"cycles précédents (min/médiane/max) = "
               f"{report['historical_min']} / {report['historical_median']} / "
               f"{report['historical_max']}")
+
+
+def main():
+    for actif, config in ACTIFS.items():
+        traiter_actif(actif, config)
 
 
 if __name__ == "__main__":

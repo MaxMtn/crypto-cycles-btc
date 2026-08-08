@@ -36,8 +36,10 @@ jobs:
         # bibliothèque standard de Python.
 
       - name: Télécharger les données et tout recalculer
+        # Les actifs traités sont listés dans scripts/actifs.py : ajouter un
+        # actif là-bas suffit, rien à changer ici.
         run: |
-          python scripts/fetch_btc_data.py
+          python scripts/fetch_data.py
           python scripts/compute_metrics.py
           python scripts/cycle_engine.py
           python scripts/build_web_data.py

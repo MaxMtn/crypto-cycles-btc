@@ -1,27 +1,29 @@
 """
-Récupère les données Bitcoin (prix, capitalisation, MVRV, offre en circulation)
-depuis l'API gratuite Coin Metrics, et les enregistre dans un fichier CSV.
+Récupère les données de chaque actif suivi (prix, capitalisation, MVRV, offre
+en circulation) depuis l'API gratuite Coin Metrics, et les enregistre dans un
+fichier CSV par actif.
 
 Aucune clé API n'est nécessaire. Cette API est limitée à 10 requêtes / 6 secondes
-par adresse IP - largement suffisant pour ce script (une poignée de requêtes).
+par adresse IP - largement suffisant pour ce script.
+
+Les actifs suivis sont listés dans scripts/actifs.py.
 """
 
 import csv
 import json
 import urllib.request
-from pathlib import Path
+
+from actifs import ACTIFS, METRIQUES_API, fichier_metriques
 
 API_URL = "https://community-api.coinmetrics.io/v4/timeseries/asset-metrics"
-METRICS = ["PriceUSD", "CapMrktCurUSD", "CapMVRVCur", "SplyCur"]
-OUTPUT_FILE = Path(__file__).resolve().parent.parent / "data" / "btc_metrics.csv"
 
 
-def fetch_all_pages():
+def fetch_all_pages(actif):
     """Interroge l'API Coin Metrics et récupère toutes les pages de résultats."""
     rows = []
     url = (
-        f"{API_URL}?assets=btc&metrics={','.join(METRICS)}"
-        "&frequency=1d&page_size=1000"
+        f"{API_URL}?assets={actif}&metrics={','.join(METRIQUES_API)}"
+        "&frequency=1d&page_size=10000"
     )
 
     while url:
@@ -29,7 +31,6 @@ def fetch_all_pages():
             payload = json.loads(response.read())
 
         rows.extend(payload["data"])
-        print(f"{len(rows)} jours récupérés...")
         url = payload.get("next_page_url")
 
     return rows
@@ -64,24 +65,35 @@ def build_csv_rows(raw_rows):
             "realized_price_usd": realized_price,
         })
 
+    # Tri chronologique : l'API renvoie ses pages dans un ordre qui dépend de
+    # leur taille. Sans ce tri, chaque actualisation quotidienne réécrirait le
+    # fichier dans un ordre différent et produirait un diff illisible dans git,
+    # au lieu des seules lignes réellement ajoutées.
+    csv_rows.sort(key=lambda r: r["date"])
+    return csv_rows, skipped
+
+
+def traiter_actif(actif, config):
+    print(f"Récupération des données {config['nom']} ({actif.upper()})...")
+    raw_rows = fetch_all_pages(actif)
+    csv_rows, skipped = build_csv_rows(raw_rows)
+
     if skipped:
-        print(f"{skipped} jours ignorés (données manquantes)")
+        print(f"  {skipped} jours ignorés (données manquantes)")
 
-    return csv_rows
-
-
-def main():
-    print("Récupération des données Bitcoin depuis Coin Metrics...")
-    raw_rows = fetch_all_pages()
-    csv_rows = build_csv_rows(raw_rows)
-
-    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(OUTPUT_FILE, "w", newline="") as f:
+    destination = fichier_metriques(actif)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with open(destination, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=csv_rows[0].keys())
         writer.writeheader()
         writer.writerows(csv_rows)
 
-    print(f"Terminé : {len(csv_rows)} lignes enregistrées dans {OUTPUT_FILE}")
+    print(f"  Terminé : {len(csv_rows)} lignes enregistrées dans {destination}")
+
+
+def main():
+    for actif, config in ACTIFS.items():
+        traiter_actif(actif, config)
 
 
 if __name__ == "__main__":

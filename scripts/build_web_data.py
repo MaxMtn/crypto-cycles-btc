@@ -1,33 +1,27 @@
 """
-Prépare les données pour la page web : écrit docs/data.js à partir de
-data/btc_cycles.csv et data/current_position.json.
+Prépare les données pour la page web : écrit docs/data.js à partir des fichiers
+de cycles et de position de chaque actif suivi.
 
-Pourquoi un fichier .js et pas directement le CSV ? Parce que les navigateurs
+Pourquoi un fichier .js et pas directement les CSV ? Parce que les navigateurs
 interdisent à une page ouverte depuis le disque (double-clic) d'aller lire un
 autre fichier du disque. En écrivant les données sous forme de fichier
 JavaScript, la page fonctionne aussi bien en local qu'une fois publiée en ligne,
 sans rien avoir à installer.
 
-Ne fait aucun appel réseau.
+Note : la fourchette min / médiane / max entre cycles n'est PAS calculée ici.
+Elle est recalculée par la page web, parce que l'utilisateur peut y choisir
+quels cycles afficher : une fourchette figée serait fausse dès qu'il en
+désélectionne un. Voir la fonction calculerFourchette() dans docs/index.html.
 """
 
 import csv
 import json
 from datetime import datetime, timezone
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-CYCLES_FILE = ROOT / "data" / "btc_cycles.csv"
-POSITION_FILE = ROOT / "data" / "current_position.json"
-OUTPUT_FILE = ROOT / "docs" / "data.js"
+from actifs import (ACTIFS, METRIQUES_CALCULEES, RACINE, fichier_cycles,
+                    fichier_position)
 
-METRICS = ["mvrv", "mayer_multiple", "drawdown_pct"]
-
-# Note : la fourchette min / médiane / max entre cycles n'est PAS calculée ici.
-# Elle est recalculée par la page web, parce que l'utilisateur peut y choisir
-# quels cycles afficher : une fourchette figée à 3 cycles serait fausse dès
-# qu'il n'en sélectionne que deux. Voir la fonction calculerFourchette()
-# dans docs/index.html.
+OUTPUT_FILE = RACINE / "docs" / "data.js"
 
 HALVING_LABELS = {
     1: "Cycle 2012",
@@ -41,8 +35,8 @@ def to_float(value):
     return float(value) if value not in ("", None) else None
 
 
-def load_cycles():
-    with open(CYCLES_FILE, newline="") as f:
+def load_cycles(actif):
+    with open(fichier_cycles(actif), newline="") as f:
         rows = list(csv.DictReader(f))
     rows.sort(key=lambda r: r["date"])
 
@@ -70,7 +64,7 @@ def build_series(cycles):
                 round(mvrv, 3) if mvrv is not None else None,
                 round(mayer, 3) if mayer is not None else None,
                 round(drawdown, 2) if drawdown is not None else None,
-                round(price) if price is not None else None,
+                round(price, 2) if price is not None else None,
             ])
         series[n] = {
             "label": HALVING_LABELS.get(n, f"Cycle {n}"),
@@ -80,31 +74,53 @@ def build_series(cycles):
     return series
 
 
-def main():
-    print("Lecture des données...")
-    cycles = load_cycles()
-    current_number = max(cycles)
-    reference_numbers = sorted(n for n in cycles if n != current_number)
+def construire_actif(actif, config):
+    cycles = load_cycles(actif)
+    with open(fichier_position(actif)) as f:
+        position = json.load(f)
+
+    numero_actuel = max(cycles)
+    # Seuls les cycles complets servent de référence. Le moteur de cycles a
+    # déjà fait ce tri ; on reprend sa décision pour que la page et les
+    # chiffres calculés côté Python parlent des mêmes cycles.
+    references = position["reference_cycles_used"]
 
     series = build_series(cycles)
+    # Les cycles écartés sont retirés des séries : les afficher laisserait
+    # croire qu'ils sont comparables alors qu'ils sont tronqués.
+    for n in position.get("reference_cycles_excluded", []):
+        series.pop(n, None)
 
-    with open(POSITION_FILE) as f:
-        position = json.load(f)
+    return {
+        "nom": config["nom"],
+        "symbole": config["symbole"],
+        "cycles": series,
+        "current_cycle_number": numero_actuel,
+        "reference_cycle_numbers": references,
+        "position": position,
+    }
+
+
+def main():
+    print("Lecture des données...")
+    actifs = {}
+    dernier_jour = ""
+
+    for actif, config in ACTIFS.items():
+        actifs[actif] = construire_actif(actif, config)
+        dernier_jour = max(dernier_jour, actifs[actif]["position"]["generated_date"])
 
     # Deux dates différentes, et la distinction compte : la première dit
     # jusqu'où vont les données, la seconde quand on est allé les chercher.
     # Si l'actualisation automatique tombe en panne, la seconde cesse
     # d'avancer — c'est ce qui permet à la page de s'en apercevoir.
-    dernier_jour = max(row["date"] for rows in cycles.values() for row in rows)
     actualise_le = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     payload = {
-        "cycles": series,
+        "actifs": actifs,
+        "actif_par_defaut": "btc",
         "dernier_jour_donnees": dernier_jour,
         "actualise_le": actualise_le,
-        "current_cycle_number": current_number,
-        "reference_cycle_numbers": reference_numbers,
-        "position": position,
     }
 
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -118,8 +134,12 @@ def main():
     size_ko = OUTPUT_FILE.stat().st_size / 1024
     print(f"Terminé : {OUTPUT_FILE} ({size_ko:.0f} Ko)")
     print(f"  Données jusqu'au {dernier_jour}, actualisées le {actualise_le}")
-    for n, data in sorted(series.items()):
-        print(f"  {data['label']} : {len(data['points'])} jours")
+    for actif, data in actifs.items():
+        cycles_txt = ", ".join(
+            f"{data['cycles'][n]['label']} ({len(data['cycles'][n]['points'])} j)"
+            for n in sorted(data["cycles"])
+        )
+        print(f"  {data['nom']} : {cycles_txt}")
 
 
 if __name__ == "__main__":

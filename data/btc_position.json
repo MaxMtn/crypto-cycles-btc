@@ -1,4 +1,6 @@
 {
+  "asset": "btc",
+  "asset_name": "Bitcoin",
   "generated_date": "2026-08-07",
   "current_cycle": {
     "halving_number": 4,
@@ -9,6 +11,7 @@
     2,
     3
   ],
+  "reference_cycles_excluded": [],
   "caveat": "Comparaison basée sur seulement 3 cycles historiques complets : chaque écart peut refléter le hasard autant qu'un signal réel. Le cycle actuel diffère structurellement des précédents (ETF spot, flux institutionnels, contexte de taux) : ne pas traiter l'historique comme un gabarit fiable. Ceci n'est pas une prédiction.",
   "metrics": {
     "mvrv": {

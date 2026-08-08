@@ -1,17 +1,20 @@
 """
-Calcule les métriques dérivées du cycle Bitcoin à partir de data/btc_metrics.csv :
+Calcule les métriques dérivées du cycle pour chaque actif suivi :
 Mayer Multiple, plus haut historique (ATH) et drawdown, jours depuis le halving.
 
-Ne fait aucun appel réseau : tout est calculé localement à partir des données
-déjà téléchargées par fetch_btc_data.py.
+Ne fait aucun appel réseau : tout est calculé localement à partir des fichiers
+produits par fetch_data.py.
+
+Note sur l'ancrage : seul Bitcoin possède des halvings. Les autres actifs sont
+alignés sur les halvings du Bitcoin, qui pilote le cycle du reste du marché
+(voir CLAUDE.md). Ce choix est discutable et doit rester visible dans
+l'interface.
 """
 
 import csv
 from datetime import date
-from pathlib import Path
 
-INPUT_FILE = Path(__file__).resolve().parent.parent / "data" / "btc_metrics.csv"
-OUTPUT_FILE = Path(__file__).resolve().parent.parent / "data" / "btc_cycles.csv"
+from actifs import ACTIFS, fichier_cycles, fichier_metriques
 
 SMA_WINDOW = 200
 
@@ -24,8 +27,8 @@ HALVING_DATES = [
 ]
 
 
-def load_rows():
-    with open(INPUT_FILE, newline="") as f:
+def load_rows(actif):
+    with open(fichier_metriques(actif), newline="") as f:
         rows = list(csv.DictReader(f))
     rows.sort(key=lambda r: r["date"])
     return rows
@@ -82,26 +85,26 @@ def add_halving_info(rows):
             row["days_since_halving"] = (row_date - current_halving).days
 
 
-def main():
-    print("Lecture de data/btc_metrics.csv...")
-    rows = load_rows()
+def traiter_actif(actif, config):
+    print(f"{config['nom']} ({actif.upper()}) :")
+    rows = load_rows(actif)
 
-    print("Calcul du Mayer Multiple...")
     add_mayer_multiple(rows)
-
-    print("Calcul du drawdown depuis l'ATH...")
     add_drawdown(rows)
-
-    print("Calcul des jours depuis le halving...")
     add_halving_info(rows)
 
-    fieldnames = list(rows[0].keys())
-    with open(OUTPUT_FILE, "w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+    destination = fichier_cycles(actif)
+    with open(destination, "w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
         writer.writeheader()
         writer.writerows(rows)
 
-    print(f"Terminé : {len(rows)} lignes enregistrées dans {OUTPUT_FILE}")
+    print(f"  Terminé : {len(rows)} lignes enregistrées dans {destination}")
+
+
+def main():
+    for actif, config in ACTIFS.items():
+        traiter_actif(actif, config)
 
 
 if __name__ == "__main__":

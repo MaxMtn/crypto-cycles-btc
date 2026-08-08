@@ -132,10 +132,31 @@ Bitcoin, 5 métriques, graphique d'alignement des cycles, mise à jour quotidien
 automatique.
 
 **Phase 2 — Extension multi-actifs**
-ETH (données on-chain partielles), puis altcoins via des proxys de cycle :
-dominance BTC, ratio ETH/BTC, drawdown depuis l'ATH, force relative vs BTC.
-Pas de coût de base on-chain disponible pour ces actifs — l'assumer explicitement
-dans l'interface.
+
+*ETH : fait le 2026-08-08.* Vérification faite, l'hypothèse « pas de coût de
+base on-chain disponible » était fausse : le MVRV est gratuit pour 125 des 138
+actifs du tier community, dont ETH, ADA, XRP, DOGE, LTC, LINK. Manquent SOL,
+AVAX, MATIC, XMR. ETH reçoit donc le même traitement complet que BTC.
+
+Deux limites propres à ETH, visibles dans l'interface :
+- **2 cycles de référence seulement** (2016, 2020). L'historique commence le
+  2015-08-08 et ne couvre le cycle 2012 qu'à 25 % : ce cycle est écarté
+  automatiquement par `cycle_est_complet()` dans cycle_engine.py.
+- **Pas de halving propre** : ETH est aligné sur les halvings du Bitcoin. Cet
+  alignement ne tombe pas juste — le creux d'ETH du cycle 2020 est antérieur au
+  halving de mai 2020 (krach Covid de mars), si bien que le minimum de la
+  fenêtre tombe sur son premier jour. La page détecte ces creux collés au bord
+  (`creuxEstExploitable()`), les signale « hors fenêtre — non exploitable » et
+  refuse de calculer un repère théorique plutôt que d'en produire un absurde.
+  Ne pas « corriger » ce comportement : c'est une limite réelle de la méthode.
+
+*Altcoins : à faire.* Proxys de cycle prévus : dominance BTC, ratio ETH/BTC,
+drawdown depuis l'ATH, force relative vs BTC. Attention au biais de survivance :
+une dominance calculée sur les actifs vivants aujourd'hui surestime
+mécaniquement la part du BTC dans le passé.
+
+Pour ajouter un actif : vérifier sa couverture Coin Metrics, puis ajouter une
+ligne dans `scripts/actifs.py`. Rien d'autre à modifier.
 
 **Phase 3 — Portefeuille**
 Saisie manuelle des positions dans un CSV du dépôt (gratuit, cinq minutes par
