@@ -1,0 +1,60 @@
+{
+  "generated_date": "2026-08-07",
+  "current_cycle": {
+    "halving_number": 4,
+    "days_since_halving": 839
+  },
+  "reference_cycles_used": [
+    1,
+    2,
+    3
+  ],
+  "caveat": "Comparaison basée sur seulement 3 cycles historiques complets : chaque écart peut refléter le hasard autant qu'un signal réel. Le cycle actuel diffère structurellement des précédents (ETF spot, flux institutionnels, contexte de taux) : ne pas traiter l'historique comme un gabarit fiable. Ceci n'est pas une prédiction.",
+  "metrics": {
+    "mvrv": {
+      "current_value": 1.2302,
+      "historical_values_same_day": {
+        "cycle_1": 0.9484,
+        "cycle_2": 1.2886,
+        "cycle_3": 0.9088
+      },
+      "historical_min": 0.9088,
+      "historical_median": 0.9484,
+      "historical_max": 1.2886,
+      "rank_percentile_exact_day": 66.7,
+      "rank_percentile_windowed": 66.7,
+      "windowed_sample_size": 87,
+      "window_days": 14
+    },
+    "mayer_multiple": {
+      "current_value": 0.9217,
+      "historical_values_same_day": {
+        "cycle_1": 0.8611,
+        "cycle_2": 0.8924,
+        "cycle_3": 0.6216
+      },
+      "historical_min": 0.6216,
+      "historical_median": 0.8611,
+      "historical_max": 0.8924,
+      "rank_percentile_exact_day": 100.0,
+      "rank_percentile_windowed": 100.0,
+      "windowed_sample_size": 87,
+      "window_days": 14
+    },
+    "drawdown_pct": {
+      "current_value": -48.0317,
+      "historical_values_same_day": {
+        "cycle_1": -74.8665,
+        "cycle_2": -67.3934,
+        "cycle_3": -70.872
+      },
+      "historical_min": -74.8665,
+      "historical_median": -70.872,
+      "historical_max": -67.3934,
+      "rank_percentile_exact_day": 100.0,
+      "rank_percentile_windowed": 100.0,
+      "windowed_sample_size": 87,
+      "window_days": 14
+    }
+  }
+}
