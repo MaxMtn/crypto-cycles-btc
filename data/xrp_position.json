@@ -1,10 +1,10 @@
 {
   "asset": "xrp",
   "asset_name": "XRP",
-  "generated_date": "2026-08-07",
+  "generated_date": "2026-08-08",
   "current_cycle": {
     "halving_number": 4,
-    "days_since_halving": 839
+    "days_since_halving": 840
   },
   "reference_cycles_used": [
     2,
@@ -16,42 +16,42 @@
   "caveat": "Comparaison basée sur seulement 2 cycles historiques complets : chaque écart peut refléter le hasard autant qu'un signal réel. Le cycle actuel diffère structurellement des précédents (ETF spot, flux institutionnels, contexte de taux) : ne pas traiter l'historique comme un gabarit fiable. Ceci n'est pas une prédiction. Le cycle 1 est écarté de la comparaison : l'historique de XRP commence le 2014-08-15 et ne les couvre pas entièrement. XRP n'a pas de halving : son cycle est ici aligné sur les halvings du Bitcoin, en supposant que celui-ci pilote le reste du marché. C'est une hypothèse de lecture, pas un fait.",
   "metrics": {
     "mvrv": {
-      "current_value": 0.721,
+      "current_value": 0.7324,
       "historical_values_same_day": {
-        "cycle_2": 0.7311,
-        "cycle_3": 0.6089
+        "cycle_2": 0.725,
+        "cycle_3": 0.6235
       },
-      "historical_min": 0.6089,
-      "historical_median": 0.67,
-      "historical_max": 0.7311,
-      "rank_percentile_exact_day": 50.0,
-      "rank_percentile_windowed": 63.8,
+      "historical_min": 0.6235,
+      "historical_median": 0.6743,
+      "historical_max": 0.725,
+      "rank_percentile_exact_day": 100.0,
+      "rank_percentile_windowed": 79.3,
       "windowed_sample_size": 58,
       "window_days": 14
     },
     "mayer_multiple": {
-      "current_value": 0.7692,
+      "current_value": 0.784,
       "historical_values_same_day": {
-        "cycle_2": 0.8848,
-        "cycle_3": 0.6047
+        "cycle_2": 0.8776,
+        "cycle_3": 0.6223
       },
-      "historical_min": 0.6047,
-      "historical_median": 0.7448,
-      "historical_max": 0.8848,
+      "historical_min": 0.6223,
+      "historical_median": 0.75,
+      "historical_max": 0.8776,
       "rank_percentile_exact_day": 50.0,
-      "rank_percentile_windowed": 50.0,
+      "rank_percentile_windowed": 51.7,
       "windowed_sample_size": 58,
       "window_days": 14
     },
     "drawdown_pct": {
-      "current_value": -71.254,
+      "current_value": -70.7924,
       "historical_values_same_day": {
-        "cycle_2": -83.3513,
-        "cycle_3": -88.1721
+        "cycle_2": -83.4914,
+        "cycle_3": -87.8845
       },
-      "historical_min": -88.1721,
-      "historical_median": -85.7617,
-      "historical_max": -83.3513,
+      "historical_min": -87.8845,
+      "historical_median": -85.688,
+      "historical_max": -83.4914,
       "rank_percentile_exact_day": 100.0,
       "rank_percentile_windowed": 100.0,
       "windowed_sample_size": 58,

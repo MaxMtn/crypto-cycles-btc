@@ -1,10 +1,10 @@
 {
   "asset": "xlm",
   "asset_name": "Stellar",
-  "generated_date": "2026-08-07",
+  "generated_date": "2026-08-08",
   "current_cycle": {
     "halving_number": 4,
-    "days_since_halving": 839
+    "days_since_halving": 840
   },
   "reference_cycles_used": [
     2,
@@ -16,42 +16,42 @@
   "caveat": "Comparaison basée sur seulement 2 cycles historiques complets : chaque écart peut refléter le hasard autant qu'un signal réel. Le cycle actuel diffère structurellement des précédents (ETF spot, flux institutionnels, contexte de taux) : ne pas traiter l'historique comme un gabarit fiable. Ceci n'est pas une prédiction. Le cycle 1 est écarté de la comparaison : l'historique de Stellar commence le 2015-09-30 et ne les couvre pas entièrement. Stellar n'a pas de halving : son cycle est ici aligné sur les halvings du Bitcoin, en supposant que celui-ci pilote le reste du marché. C'est une hypothèse de lecture, pas un fait.",
   "metrics": {
     "mvrv": {
-      "current_value": 1.2964,
+      "current_value": 1.3225,
       "historical_values_same_day": {
-        "cycle_2": 1.1866,
-        "cycle_3": 0.8443
+        "cycle_2": 1.1651,
+        "cycle_3": 0.8636
       },
-      "historical_min": 0.8443,
-      "historical_median": 1.0154,
-      "historical_max": 1.1866,
+      "historical_min": 0.8636,
+      "historical_median": 1.0144,
+      "historical_max": 1.1651,
       "rank_percentile_exact_day": 100.0,
-      "rank_percentile_windowed": 93.1,
+      "rank_percentile_windowed": 96.6,
       "windowed_sample_size": 58,
       "window_days": 14
     },
     "mayer_multiple": {
-      "current_value": 0.9189,
+      "current_value": 0.9377,
       "historical_values_same_day": {
-        "cycle_2": 0.8878,
-        "cycle_3": 0.6702
+        "cycle_2": 0.8694,
+        "cycle_3": 0.6883
       },
-      "historical_min": 0.6702,
-      "historical_median": 0.779,
-      "historical_max": 0.8878,
+      "historical_min": 0.6883,
+      "historical_median": 0.7789,
+      "historical_max": 0.8694,
       "rank_percentile_exact_day": 100.0,
-      "rank_percentile_windowed": 79.3,
+      "rank_percentile_windowed": 86.2,
       "windowed_sample_size": 58,
       "window_days": 14
     },
     "drawdown_pct": {
-      "current_value": -81.6804,
+      "current_value": -81.3293,
       "historical_values_same_day": {
-        "cycle_2": -73.6202,
-        "cycle_3": -88.2574
+        "cycle_2": -74.1513,
+        "cycle_3": -87.9897
       },
-      "historical_min": -88.2574,
-      "historical_median": -80.9388,
-      "historical_max": -73.6202,
+      "historical_min": -87.9897,
+      "historical_median": -81.0705,
+      "historical_max": -74.1513,
       "rank_percentile_exact_day": 50.0,
       "rank_percentile_windowed": 50.0,
       "windowed_sample_size": 58,
