@@ -6,361 +6,353 @@
 <title>Crypto Cockpit — cycles de marché</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
-  /* Couleurs : deux jeux, un pour le mode clair, un pour le mode sombre. */
+  /* ------------------------------------------------------------------
+     Crypto Cockpit — bandes de normales.
+     Les cycles passés forment une bande ; le cycle en cours est le trait
+     qui la traverse, dedans ou dehors. Langue empruntée aux graphiques
+     climatiques, la seule d'usage courant conçue pour lire une valeur du
+     jour contre une plage historique. Fond clair, bande turquoise, point
+     du jour en orange.
+     ------------------------------------------------------------------ */
   :root {
-    --fond: #ffffff;
-    --fond-bloc: #f6f7f9;
-    --texte: #1a1c1f;
-    --texte-doux: #5d6470;
-    --bordure: #e2e5ea;
-    --actuel: #d9480f;
-    --bande: rgba(122, 133, 149, 0.20);
-    --alerte-fond: #fff8e6;
-    --alerte-bordure: #e6c65c;
-    /* Une couleur par cycle de référence, pour pouvoir les distinguer
-       quand plusieurs sont affichés en même temps. */
-    --cycle-1: #3b6fa8;
-    --cycle-2: #3f8f52;
-    --cycle-3: #9a5fa0;
+    --fond:      #FFFFFF;
+    --repos:     #F5F7F9;
+    --carte:     #FFFFFF;
+    --encre:     #0F1729;
+    --doux:      #5B6779;
+    --trait:     #E3E8ED;
+    --trait-fin: #EDF1F5;
+
+    --bande:     #0EA5A5;   /* la plage des cycles passés */
+    --bande-fond:#D6F0EF;
+    --jour:      #F97316;   /* la valeur du jour */
+    --jour-fond: #FDE9D5;
+
+    --cycle-1:   #2563EB;
+    --cycle-2:   #059669;
+    --cycle-3:   #7C3AED;
+
+    --vert:      #05715A;
+    --orange:    #B4480C;
+
+    --ombre-1: 0 1px 2px rgba(15,23,41,.05), 0 6px 16px -10px rgba(15,23,41,.22);
+    --ombre-2: 0 2px 4px rgba(15,23,41,.05), 0 18px 40px -20px rgba(15,23,41,.3);
+    --rond: 14px;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --fond: #16181c;
-      --fond-bloc: #1e2126;
-      --texte: #e8eaed;
-      --texte-doux: #a0a7b4;
-      --bordure: #2e333b;
-      --actuel: #ff8b4d;
-      --bande: rgba(142, 153, 168, 0.24);
-      --alerte-fond: #2a2415;
-      --alerte-bordure: #7a6420;
-      --cycle-1: #6ba3dd;
-      --cycle-2: #6dc07f;
-      --cycle-3: #c48fca;
+      --fond:      #0E1420;
+      --repos:     #151D2C;
+      --carte:     #16202F;
+      --encre:     #E8EDF4;
+      --doux:      #93A1B5;
+      --trait:     #26324450;
+      --trait-fin: #202B3C;
+
+      --bande:     #2DD4BF;
+      --bande-fond:#123A3B;
+      --jour:      #FB923C;
+      --jour-fond: #3A2413;
+
+      --cycle-1:   #60A5FA;
+      --cycle-2:   #34D399;
+      --cycle-3:   #A78BFA;
+
+      --vert:      #34D399;
+      --orange:    #FB923C;
+
+      --ombre-1: 0 1px 2px rgba(0,0,0,.4), 0 6px 16px -10px rgba(0,0,0,.6);
+      --ombre-2: 0 2px 4px rgba(0,0,0,.45), 0 18px 40px -20px rgba(0,0,0,.72);
     }
   }
 
-  body {
-    margin: 0;
-    padding: 24px 20px 48px;
-    background: var(--fond);
-    color: var(--texte);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    line-height: 1.55;
-    max-width: 980px;
-    margin-inline: auto;
-  }
-  h1 { font-size: 1.5rem; margin: 0; letter-spacing: -0.01em; }
+  * { box-sizing: border-box; }
 
-  .entete { display: flex; align-items: center; gap: 13px; margin-bottom: 6px; }
-  .marque { width: 46px; height: 46px; flex: none; }
+  body {
+    margin: 0 auto;
+    padding: 32px 24px 64px;
+    max-width: 1260px;
+    background: var(--fond);
+    color: var(--encre);
+    font: 400 16px/1.55 "Helvetica Neue", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .nums { font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+
+  /* ---------- En-tête ---------- */
+  .entete { display: flex; align-items: center; gap: 13px; margin-bottom: 4px; }
+  .marque { width: 44px; height: 44px; flex: none; }
   .marque-courbe {
-    fill: none; stroke: var(--texte); stroke-width: 8;
+    fill: none; stroke: var(--encre); stroke-width: 8;
     stroke-linecap: round; stroke-linejoin: round;
   }
-  /* Le halo reprend la couleur du fond : il détache le point de la courbe
-     sans avoir à déplacer l'un ou l'autre. */
   .marque-halo { fill: var(--fond); }
-  .marque-point { fill: var(--actuel); }
-  .accroche { margin: 3px 0 0; color: var(--texte-doux); font-size: 0.92rem; }
-  h2 { font-size: 1.05rem; margin: 32px 0 10px; }
-  .sous-titre { color: var(--texte-doux); margin: 0 0 20px; font-size: 0.92rem; }
+  .marque-point { fill: var(--jour); }
+  h1 { font-size: 1.4rem; margin: 0; letter-spacing: -.025em; font-weight: 700; }
+  .accroche { margin: 2px 0 0; color: var(--doux); font-size: .92rem; }
+  .sous-titre { color: var(--doux); margin: 16px 0 0; font-size: .9rem; }
 
-  /* Bandeau de fraîcheur des données. En temps normal il reste discret ;
-     il ne se met en évidence que si les données ont cessé d'être actualisées,
-     puisque c'est le seul moment où il a quelque chose à apprendre. */
-  .fraicheur {
-    display: flex;
-    align-items: baseline;
-    flex-wrap: wrap;
-    gap: 4px 10px;
-    margin: 32px 0 0;
-    padding: 9px 13px;
-    border-radius: 8px;
-    border: 1px solid var(--bordure);
-    background: var(--fond-bloc);
-    font-size: 0.87rem;
+  /* ---------- La réponse ---------- */
+  .reponse { margin: 20px 0 26px; }
+  .verdict {
+    font-size: clamp(1.6rem, 4vw, 2.5rem);
+    line-height: 1.11; letter-spacing: -.035em; font-weight: 700;
+    margin: 0 0 10px; max-width: 21ch; text-wrap: balance;
   }
-  .fraicheur .jour { font-weight: 600; }
-  .fraicheur .secondaire { color: var(--texte-doux); font-size: 0.83rem; }
-  .fraicheur.perimee {
-    border-color: var(--alerte-bordure);
-    background: var(--alerte-fond);
-  }
-  .fraicheur.perimee .alerte { font-weight: 600; }
+  .verdict .cle { color: var(--jour); }
+  .verdict .cle-dedans { color: var(--bande); }
+  .verdict-detail { margin: 0; color: var(--doux); font-size: 1rem; max-width: 68ch; }
 
-  /* Le rappel d'incertitude reste visible en permanence : c'est une règle
-     du projet, pas une décoration. */
-  /* L'encadré s'ouvre sur une explication neutre, puis isole les limites sur
-     fond d'alerte : sans cette séparation, le ton d'avertissement s'appliquerait
-     aussi à la présentation et perdrait de sa force. */
+  /* ---------- Réglages ---------- */
+  .intitule {
+    font-size: .72rem; text-transform: uppercase; letter-spacing: .09em;
+    color: var(--doux); font-weight: 700;
+  }
+  .groupe-reglage { display: flex; flex-direction: column; gap: 8px; }
+  .boutons { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .boutons button {
+    font: inherit; font-size: .88rem; padding: 8px 15px;
+    border-radius: 999px; border: 1px solid var(--trait);
+    background: var(--carte); color: var(--encre); cursor: pointer;
+    transition: background .13s ease, border-color .13s ease, color .13s ease;
+  }
+  .boutons button:hover { border-color: var(--doux); }
+  .boutons button[aria-selected="true"] {
+    background: var(--encre); color: var(--fond); border-color: var(--encre);
+  }
+  .boutons button:focus-visible,
+  .carte-metrique:focus-visible { outline: 2px solid var(--jour); outline-offset: 2px; }
+
+  .bascule { display: inline-flex; align-items: center; gap: 8px; }
+  .bascule .pastille {
+    width: 11px; height: 11px; border-radius: 50%;
+    background: var(--couleur-cycle); flex: none;
+  }
+  .bascule[aria-pressed="false"] { opacity: .48; }
+  .bascule[aria-pressed="false"] .pastille {
+    background: transparent; box-shadow: inset 0 0 0 2px var(--couleur-cycle);
+  }
+  .bascule[aria-pressed="true"] { border-color: var(--couleur-cycle); }
+  .lien-rapide {
+    background: none !important; border: none !important;
+    color: var(--doux) !important; text-decoration: underline;
+    padding: 4px 2px !important; font-size: .82rem !important; cursor: pointer;
+  }
+
+  /* ---------- Plateau : graphique + cartes ---------- */
+  .plateau {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 310px;
+    gap: 18px; align-items: start; margin-top: 20px;
+  }
+  .colonne-graphique { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+
+  .cadre-graphique {
+    background: var(--repos); border-radius: var(--rond);
+    padding: 14px 16px 10px; overflow-x: auto;
+  }
+  #graphique {
+    display: block; width: 100%; height: auto; min-width: 520px;
+    cursor: grab; touch-action: pan-y;
+  }
+  #graphique.en-deplacement { cursor: grabbing; }
+
+  /* La bande est le sujet : c'est elle qu'on lit, le reste la sert. */
+  .bande-historique { fill: var(--bande-fond); opacity: 1; }
+  .ligne-mediane {
+    fill: none; stroke: var(--bande); stroke-width: 1.6;
+    stroke-dasharray: 6 5; opacity: .75;
+  }
+  .ligne-historique { fill: none; stroke-width: 1.4; opacity: .5; }
+  .ligne-actuelle { fill: none; stroke: var(--encre); stroke-width: 3.4; }
+  .point-actuel { fill: var(--jour); stroke: var(--repos); stroke-width: 3; }
+
+  .axe { stroke: var(--trait); stroke-width: 1; }
+  .graduation { fill: var(--doux); font-size: 11px; }
+  .titre-axe { fill: var(--doux); font-size: 12px; }
+  .creux { stroke: var(--repos); stroke-width: 1.5; }
+  .creux-provisoire { fill: var(--repos); stroke: var(--jour); stroke-width: 2.4; }
+  .zone-creux { fill: var(--jour); opacity: .09; }
+  .etiquette-zone { fill: var(--orange); font-size: 10px; font-weight: 600; }
+  .trait-repere {
+    stroke: var(--orange); stroke-width: 1.6;
+    stroke-dasharray: 6 4; opacity: .8;
+  }
+  .curseur { stroke: var(--doux); stroke-width: 1; stroke-dasharray: 3 3; opacity: .7; }
+
+  .barre-zoom {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    font-size: .8rem; color: var(--doux);
+  }
+  .barre-zoom .aide-zoom { flex: 1 1 auto; }
+  .barre-zoom .etendue-vue { font-variant-numeric: tabular-nums; }
+  .barre-zoom button {
+    font: inherit; padding: 5px 12px; border-radius: 999px;
+    border: 1px solid var(--trait); background: var(--carte);
+    color: var(--encre); cursor: pointer;
+  }
+
+  .legende {
+    display: flex; gap: 8px 18px; flex-wrap: wrap;
+    font-size: .82rem; color: var(--doux);
+  }
+  .legende span { display: inline-flex; align-items: center; gap: 6px; }
+  .puce { width: 16px; height: 3px; border-radius: 2px; display: inline-block; flex: none; }
+  .infobulle { font-size: .85rem; color: var(--doux); min-height: 1.5em; margin: 0; }
+
+  /* ---------- Cartes de métriques ---------- */
+  .cartes { display: flex; flex-direction: column; gap: 10px; }
+  .carte-metrique {
+    display: block; width: 100%; text-align: left; font: inherit; cursor: pointer;
+    background: var(--carte); border: 1px solid var(--trait); border-radius: 12px;
+    padding: 14px 16px 12px; color: var(--encre);
+    transition: border-color .13s ease, box-shadow .13s ease;
+  }
+  .carte-metrique:hover { border-color: var(--doux); }
+  .carte-metrique[aria-selected="true"] {
+    border-color: var(--encre); box-shadow: var(--ombre-1);
+  }
+  .carte-metrique .nom { font-size: .8rem; color: var(--doux); }
+  .carte-metrique .val {
+    font-size: 1.65rem; font-weight: 700; letter-spacing: -.03em;
+    line-height: 1.1; margin-top: 2px;
+  }
+  .carte-metrique .etat { font-size: .78rem; font-weight: 600; margin-top: 4px; }
+  .etat.dedans { color: var(--vert); }
+  .etat.dessus, .etat.dessous { color: var(--orange); }
+  .etat.rien { color: var(--doux); }
+
+  /* Jauge : la plage des cycles passés en bande turquoise, le jour en pastille. */
+  .jauge { position: relative; height: 28px; margin-top: 12px; }
+  .jauge .rail {
+    position: absolute; inset: 12px 0 auto; height: 3px;
+    background: var(--trait); border-radius: 2px;
+  }
+  .jauge .plage {
+    position: absolute; top: 7px; height: 13px;
+    background: var(--bande-fond); border-radius: 7px;
+  }
+  .jauge .moi {
+    position: absolute; top: 4px; width: 19px; height: 19px; margin-left: -9px;
+    border-radius: 50%; background: var(--jour);
+    border: 3px solid var(--carte); box-shadow: 0 1px 4px rgba(15,23,41,.28);
+  }
+  .jauge .bornes {
+    position: absolute; top: 23px; width: 100%;
+    display: flex; justify-content: space-between;
+    font-size: .68rem; color: var(--doux);
+  }
+
+  /* ---------- Blocs de texte ---------- */
+  .definition {
+    background: var(--repos); border-radius: 12px;
+    padding: 13px 16px; font-size: .89rem;
+  }
+  .definition .nom-def { font-weight: 700; }
+  .definition .formule { display: block; color: var(--doux); font-size: .84rem; margin-top: 1px; }
+  .definition p { margin: 7px 0 0; }
+
   .avertissement {
-    background: var(--fond-bloc);
-    border: 1px solid var(--bordure);
-    border-radius: 10px;
-    padding: 14px 16px;
-    font-size: 0.88rem;
-    margin-bottom: 22px;
+    background: var(--repos); border-radius: 12px;
+    padding: 16px 18px; font-size: .87rem; margin-top: 22px;
   }
-  /* Seuls les titres de section passent en bloc. Viser « strong » sans
-     distinction couperait aussi les mots mis en gras au fil d'une phrase. */
   .avertissement > strong,
   .avertissement .limites > strong { display: block; margin-bottom: 4px; }
   .avertissement p { margin: 0 0 8px; }
   .avertissement p:last-child { margin-bottom: 0; }
   .avertissement .limites {
-    display: block;
-    margin-top: 14px;
-    padding: 11px 13px;
-    background: var(--alerte-fond);
-    border: 1px solid var(--alerte-bordure);
-    border-radius: 8px;
+    display: block; margin-top: 13px; padding: 12px 14px;
+    background: var(--jour-fond); border-radius: 9px;
   }
   .avertissement .selection { display: block; margin-top: 8px; font-weight: 600; }
 
-  .barre-reglages { display: flex; flex-wrap: wrap; gap: 22px; margin-bottom: 16px; }
-  .groupe-reglage { display: flex; flex-direction: column; gap: 7px; }
-  .groupe-reglage .intitule {
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--texte-doux);
-  }
-  .boutons { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .boutons button {
-    font: inherit;
-    font-size: 0.9rem;
-    padding: 7px 14px;
-    border-radius: 999px;
-    border: 1px solid var(--bordure);
-    background: var(--fond-bloc);
-    color: var(--texte);
-    cursor: pointer;
-  }
-  .onglets button[aria-selected="true"] {
-    background: var(--texte);
-    color: var(--fond);
-    border-color: var(--texte);
-  }
-
-  /* Boutons d'affichage des cycles : la pastille de couleur reprend celle de
-     la courbe, et le bouton s'éteint visuellement quand le cycle est masqué. */
-  .bascule { display: inline-flex; align-items: center; gap: 8px; }
-  .bascule .pastille {
-    width: 11px; height: 11px; border-radius: 50%;
-    background: var(--couleur-cycle);
-    flex: none;
-  }
-  .bascule[aria-pressed="false"] { opacity: 0.45; }
-  .bascule[aria-pressed="false"] .pastille { background: transparent; box-shadow: inset 0 0 0 2px var(--couleur-cycle); }
-  .bascule[aria-pressed="true"] { border-color: var(--couleur-cycle); }
-  .lien-rapide {
-    background: none !important;
-    border: none !important;
-    color: var(--texte-doux) !important;
-    text-decoration: underline;
-    padding: 4px 2px !important;
-    font-size: 0.84rem !important;
-    cursor: pointer;
-  }
-
-  /* Définition de la métrique sélectionnée, juste sous les boutons. */
-  .definition {
-    border-left: 3px solid var(--actuel);
-    background: var(--fond-bloc);
-    border-radius: 0 8px 8px 0;
-    padding: 11px 15px;
-    /* Occupe toute la largeur du bloc de réglages : sans cela, elle se
-       placerait en colonne à côté des boutons. L'espacement vient de
-       l'écart du conteneur, d'où l'absence de marge. */
-    flex-basis: 100%;
-    margin: 0;
-    font-size: 0.9rem;
-  }
-  .definition .nom { font-weight: 600; }
-  .definition .formule {
-    display: block;
-    color: var(--texte-doux);
-    font-size: 0.85rem;
-    margin-top: 1px;
-  }
-  .definition p { margin: 7px 0 0; }
-
-  /* Les boutons de cycles viennent en dernier des réglages, et l'aide au zoom
-     passe sous le graphique : ces deux déplacements mettent les boutons au
-     contact direct de la courbe, là où on les manipule en la regardant. */
-  #groupe-cycles { order: 1; }
-  .zone-graphique { display: flex; flex-direction: column; }
-
-  .barre-zoom {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-    order: 1;
-    margin: 9px 0 0;
-    font-size: 0.82rem;
-    color: var(--texte-doux);
-  }
-  .barre-zoom .aide-zoom { flex: 1 1 auto; }
-  .barre-zoom .etendue-vue { font-variant-numeric: tabular-nums; }
-  .barre-zoom button {
-    font: inherit;
-    padding: 5px 12px;
-    border-radius: 999px;
-    border: 1px solid var(--bordure);
-    background: var(--fond-bloc);
-    color: var(--texte);
-    cursor: pointer;
-  }
-
-  /* Zone couvrant les jours où les cycles précédents ont touché leur creux. */
-  .zone-creux { fill: var(--actuel); opacity: 0.07; }
-  .trait-repere { stroke: var(--actuel); stroke-width: 1.5; stroke-dasharray: 6 4; opacity: 0.7; }
-  .etiquette-zone { fill: var(--texte-doux); font-size: 10px; opacity: 0.9; }
-
-  .cadre-graphique {
-    border: 1px solid var(--bordure);
-    border-radius: 10px;
-    background: var(--fond-bloc);
-    padding: 8px;
-    overflow-x: auto;
-  }
-  /* Ne viser que le graphique, et surtout pas « svg » en général : d'autres
-     petites images vectorielles (la puce de la légende) seraient étirées
-     à la largeur de la page. */
-  /* pan-y : le navigateur garde le défilement vertical de la page, on récupère
-     le geste horizontal et le pincement pour piloter le graphique. */
-  #graphique {
-    display: block; width: 100%; height: auto; min-width: 560px;
-    cursor: grab; touch-action: pan-y;
-  }
-  #graphique.en-deplacement { cursor: grabbing; }
-
-  /* --- Téléphones et petits écrans --------------------------------------- */
-  @media (max-width: 700px) {
-    body { padding: 16px 14px 36px; }
-    h1 { font-size: 1.25rem; }
-    h2 { font-size: 1rem; margin-top: 26px; }
-
-    /* Le graphique occupe toute la largeur disponible au lieu d'imposer un
-       défilement : mieux vaut un tracé un peu tassé qu'un tracé qu'on ne voit
-       qu'en faisant glisser. */
-    #graphique { min-width: 0; }
-    .cadre-graphique { padding: 4px; }
-
-    /* Le dessin est mis à l'échelle de l'écran : sans cela, les étiquettes des
-       axes deviendraient illisibles une fois réduites de 900 px à 350. */
-    .graduation { font-size: 17px; }
-    .titre-axe { font-size: 18px; }
-    .etiquette-zone { font-size: 15px; }
-
-    /* Les réglages passent les uns sous les autres plutôt que côte à côte. */
-    .barre-reglages { flex-direction: column; gap: 14px; }
-    .definition { flex-basis: auto; }
-    .boutons button { padding: 9px 14px; }
-    .bascule { padding: 9px 13px; }
-
-    table { font-size: 0.84rem; }
-    th, td { padding: 7px 8px; white-space: nowrap; }
-    .repere-theorique .chiffre { font-size: 1.3rem; }
-    .legende { gap: 10px 14px; font-size: 0.8rem; }
-  }
-  .axe { stroke: var(--bordure); stroke-width: 1; }
-  .graduation { fill: var(--texte-doux); font-size: 11px; }
-  .titre-axe { fill: var(--texte-doux); font-size: 12px; }
-  .ligne-historique { fill: none; stroke-width: 1.5; opacity: 0.9; }
-  .ligne-actuelle { fill: none; stroke: var(--actuel); stroke-width: 2.4; }
-  .ligne-mediane { fill: none; stroke: var(--texte-doux); stroke-width: 1.4; stroke-dasharray: 5 4; opacity: 0.85; }
-  .bande-historique { fill: var(--bande); }
-  .point-actuel { fill: var(--actuel); stroke: var(--fond); stroke-width: 2; }
-  /* Losange marquant le creux d'un cycle. Celui du cycle en cours est creux
-     (non rempli) parce qu'il est provisoire : rien ne dit qu'il est atteint. */
-  .creux { stroke: var(--fond); stroke-width: 1.5; }
-  .creux-provisoire { fill: var(--fond); stroke: var(--actuel); stroke-width: 2; }
-  .curseur { stroke: var(--texte-doux); stroke-width: 1; stroke-dasharray: 3 3; opacity: 0.7; }
-
-  .legende { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; font-size: 0.85rem; color: var(--texte-doux); }
-  .legende span { display: inline-flex; align-items: center; gap: 6px; }
-  .puce { width: 16px; height: 3px; border-radius: 2px; display: inline-block; flex: none; }
-
-  .infobulle {
-    font-size: 0.86rem;
-    color: var(--texte-doux);
-    min-height: 1.5em;
-    margin-top: 8px;
-  }
-
-  /* Les tableaux ont cinq colonnes : sur un téléphone ils débordent. Plutôt
-     que de masquer des colonnes, on les laisse défiler horizontalement dans
-     leur propre cadre — la page, elle, ne bouge pas. */
-  .tableau-defilant { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; margin-top: 6px; }
-  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--bordure); }
-  th { color: var(--texte-doux); font-weight: 600; }
-  td.valeur-actuelle { color: var(--actuel); font-weight: 600; }
-  tr.methode-active td { color: var(--actuel); font-weight: 600; }
-
   .lecture {
-    background: var(--fond-bloc);
-    border: 1px solid var(--bordure);
-    border-radius: 10px;
-    padding: 14px 16px;
-    margin-top: 14px;
-    font-size: 0.92rem;
+    background: var(--repos); border-radius: 12px;
+    padding: 15px 17px; margin-top: 12px; font-size: .91rem;
   }
   .lecture p { margin: 0 0 8px; }
   .lecture p:last-child { margin-bottom: 0; }
+  .note { font-size: .84rem; color: var(--doux); margin-top: 10px; }
+  .note strong { color: var(--encre); }
 
-  /* Repère théorique : bordure en pointillés et fond neutre, pour qu'il ne
-     ressemble jamais à une donnée mesurée comme le reste de la page. */
+  h2 {
+    font-size: .74rem; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--doux); font-weight: 700; margin: 36px 0 10px;
+  }
+
+  /* ---------- Tableaux ---------- */
+  .tableau-defilant { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { border-collapse: collapse; width: 100%; font-size: .89rem; }
+  th, td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--trait-fin); }
+  th {
+    color: var(--doux); font-weight: 700; font-size: .72rem;
+    text-transform: uppercase; letter-spacing: .06em;
+  }
+  td.valeur-actuelle { color: var(--orange); font-weight: 700; }
+  tr.methode-active td { color: var(--orange); font-weight: 700; }
+
+  /* ---------- Repère théorique ---------- */
   .repere-theorique {
-    border: 2px dashed var(--bordure);
-    border-radius: 10px;
-    padding: 14px 16px;
-    margin-top: 14px;
-    text-align: center;
+    border: 1px dashed var(--trait); border-radius: 12px;
+    padding: 16px 18px; margin-top: 12px; text-align: center; background: var(--carte);
   }
   .repere-theorique:empty { display: none; }
   .repere-theorique .etiquette {
-    display: inline-block;
-    font-size: 0.72rem;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--texte-doux);
-    border: 1px solid var(--bordure);
-    border-radius: 999px;
-    padding: 2px 10px;
-    margin-bottom: 10px;
+    display: inline-block; font-size: .7rem; text-transform: uppercase;
+    letter-spacing: .07em; color: var(--doux);
+    border: 1px solid var(--trait); border-radius: 999px;
+    padding: 2px 10px; margin-bottom: 10px;
   }
   .repere-theorique .chiffre {
-    margin: 0;
-    font-size: 1.5rem;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
+    margin: 0; font-size: 1.75rem; font-weight: 700;
+    letter-spacing: -.03em; font-variant-numeric: tabular-nums;
   }
   .repere-theorique .detail {
-    margin: 2px 0 0;
-    font-size: 0.9rem;
-    color: var(--texte-doux);
+    margin: 2px 0 0; font-size: .89rem; color: var(--doux);
     font-variant-numeric: tabular-nums;
   }
   .repere-theorique .methode {
-    margin: 10px auto 0;
-    max-width: 56ch;
-    font-size: 0.82rem;
-    color: var(--texte-doux);
+    margin: 10px auto 0; max-width: 60ch; font-size: .81rem; color: var(--doux);
   }
 
-  .note { font-size: 0.86rem; color: var(--texte-doux); margin-top: 10px; }
-  .note strong { color: var(--texte); }
+  /* ---------- Fraîcheur & pied ---------- */
+  .fraicheur {
+    display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px;
+    margin: 34px 0 0; padding: 11px 14px; border-radius: 10px;
+    border: 1px solid var(--trait); background: var(--carte); font-size: .85rem;
+  }
+  .fraicheur .jour { font-weight: 700; }
+  .fraicheur .secondaire { color: var(--doux); font-size: .82rem; }
+  .fraicheur.perimee { border-color: var(--jour); background: var(--jour-fond); }
+  .fraicheur.perimee .alerte { font-weight: 700; }
 
   footer {
-    margin-top: 36px;
-    padding-top: 16px;
-    border-top: 1px solid var(--bordure);
-    font-size: 0.82rem;
-    color: var(--texte-doux);
+    margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--trait-fin);
+    font-size: .81rem; color: var(--doux);
+  }
+
+  /* ---------- Écrans étroits ---------- */
+  @media (max-width: 940px) {
+    .plateau { grid-template-columns: 1fr; }
+    .cartes { display: grid; grid-template-columns: repeat(auto-fit, minmax(212px, 1fr)); gap: 10px; }
+  }
+  @media (max-width: 700px) {
+    body { padding: 20px 14px 42px; }
+    h1 { font-size: 1.2rem; }
+    .marque { width: 38px; height: 38px; }
+    #graphique { min-width: 0; }
+    .cadre-graphique { padding: 8px 6px 4px; }
+    .graduation { font-size: 17px; }
+    .titre-axe { font-size: 18px; }
+    .etiquette-zone { font-size: 15px; }
+    .boutons button { padding: 9px 14px; }
+    table { font-size: .84rem; }
+    th, td { padding: 8px 9px; white-space: nowrap; }
+    .barre-zoom { order: 1; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
   }
 </style>
 </head>
@@ -382,7 +374,48 @@
   </div>
 </header>
 
-<p class="sous-titre" id="sous-titre"></p>
+<p class="sous-titre nums" id="sous-titre"></p>
+
+<!-- La réponse d'abord, en une phrase : la bande du graphique juste en dessous
+     en est la preuve, il n'y a donc rien à dessiner deux fois ici. -->
+<section class="reponse">
+  <p class="verdict" id="verdict"></p>
+  <p class="verdict-detail" id="verdict-detail"></p>
+</section>
+
+<div class="groupe-reglage">
+  <span class="intitule">Actif</span>
+  <div class="boutons" id="actifs"></div>
+</div>
+
+<div class="plateau">
+  <div class="colonne-graphique">
+    <div class="groupe-reglage" id="groupe-cycles">
+      <span class="intitule">Cycles de référence affichés</span>
+      <div class="boutons" id="bascules"></div>
+    </div>
+
+    <div class="cadre-graphique">
+      <svg id="graphique" viewBox="0 0 900 460" role="img"
+           aria-label="Comparaison des cycles"></svg>
+    </div>
+
+    <div class="barre-zoom">
+      <span class="aide-zoom" id="aide-zoom"></span>
+      <span class="etendue-vue" id="etendue-vue"></span>
+      <button id="reinitialiser-zoom">Vue complète</button>
+    </div>
+
+    <div class="legende" id="legende"></div>
+    <p class="infobulle" id="infobulle"></p>
+    <div class="definition" id="definition"></div>
+  </div>
+
+  <!-- Les cartes sont le sélecteur de métrique : on voit les trois positions
+       d'un coup d'œil, et cliquer l'une d'elles la porte sur le graphique. -->
+  <div class="cartes" id="onglets" role="tablist"
+       aria-label="Indicateurs — cliquer pour afficher la courbe"></div>
+</div>
 
 <div class="avertissement">
   <span id="texte-presentation"></span>
@@ -393,44 +426,6 @@
     <span class="selection" id="avertissement-selection"></span>
   </span>
 </div>
-
-<div class="barre-reglages">
-  <div class="groupe-reglage">
-    <span class="intitule">Actif</span>
-    <div class="boutons onglets" id="actifs"></div>
-  </div>
-  <div class="groupe-reglage">
-    <span class="intitule">Métrique</span>
-    <div class="boutons onglets" id="onglets" role="tablist"></div>
-  </div>
-  <div class="groupe-reglage" id="groupe-cycles">
-    <span class="intitule">Cycles de référence affichés</span>
-    <div class="boutons" id="bascules"></div>
-  </div>
-
-  <!-- La définition fait partie du même bloc que les réglages : sur téléphone,
-       elle passe ainsi avant les boutons de cycles (voir « order » plus bas),
-       ce qui laisse ces boutons directement au contact du graphique. -->
-  <div class="definition" id="definition"></div>
-</div>
-
-<!-- Aide au zoom et graphique réunis : sur téléphone, l'aide passe en dessous
-     (voir « order »), pour que les boutons de cycles touchent le graphique. -->
-<div class="zone-graphique">
-  <div class="barre-zoom">
-    <span class="aide-zoom" id="aide-zoom"></span>
-    <span class="etendue-vue" id="etendue-vue"></span>
-    <button id="reinitialiser-zoom">Vue complète</button>
-  </div>
-
-  <div class="cadre-graphique">
-    <svg id="graphique" viewBox="0 0 900 460" role="img" aria-label="Comparaison des cycles Bitcoin"></svg>
-  </div>
-</div>
-
-<div class="legende" id="legende"></div>
-
-<p class="infobulle" id="infobulle"></p>
 
 <h2>Position actuelle par rapport aux cycles sélectionnés</h2>
 <div class="tableau-defilant"><table id="tableau"></table></div>
@@ -446,9 +441,9 @@
 <div id="section-repere">
 <h2>Quand les cycles précédents ont-ils touché leur creux ?</h2>
 
-<div class="groupe-reglage" style="margin-bottom: 4px">
+<div class="groupe-reglage">
   <span class="intitule">Méthode de calcul du repère</span>
-  <div class="boutons onglets" id="methodes"></div>
+  <div class="boutons" id="methodes"></div>
 </div>
 
 <div class="repere-theorique" id="repere-theorique"></div>
@@ -490,6 +485,7 @@ document.write('<scr' + 'ipt src="data.js?t=' + Date.now() + '"></scr' + 'ipt>')
 const METRIQUES = {
   mvrv: {
     titre: "MVRV",
+    sujet: "Le MVRV",
     axe: "MVRV (capitalisation de marché / capitalisation réalisée)",
     formule: "= ce que valent tous les bitcoins aujourd'hui ÷ ce qu'ils valaient lors de leur dernier mouvement",
     explication: "Indique si les détenteurs de bitcoins sont globalement en gain ou en perte. Au-dessus de 1, l'ensemble du marché est en gain latent ; en dessous de 1, en perte. Plus le chiffre est élevé, plus le marché s'est éloigné du prix réellement payé.",
@@ -497,6 +493,7 @@ const METRIQUES = {
   },
   mayer_multiple: {
     titre: "Mayer Multiple",
+    sujet: "Le Mayer Multiple",
     axe: "Mayer Multiple (prix / moyenne 200 jours)",
     formule: "= prix du jour ÷ moyenne des 200 derniers jours",
     explication: "Situe le prix par rapport à sa tendance de fond. Au-dessus de 1, le prix est plus haut que sa moyenne de long terme ; en dessous de 1, plus bas. Une valeur de 1,5 signifie un prix 50 % au-dessus de cette moyenne.",
@@ -504,6 +501,7 @@ const METRIQUES = {
   },
   drawdown_pct: {
     titre: "Drawdown",
+    sujet: "Le drawdown",
     axe: "Drawdown depuis le plus haut historique (%)",
     formule: "= écart entre le prix du jour et le plus haut atteint jusque-là",
     explication: "Mesure la baisse depuis le record précédent. 0 % signifie que le prix est sur un nouveau record ; −50 % qu'il a été divisé par deux depuis son plus haut.",
@@ -513,6 +511,7 @@ const METRIQUES = {
   // --- Indicateurs de marché (actif « Marché » uniquement) ---
   dominance_base100: {
     titre: "Part du BTC (base 100)",
+    sujet: "La part du BTC",
     axe: "Part du BTC dans le panier, base 100 au halving",
     formule: "= part du BTC aujourd'hui ÷ sa part le jour du halving × 100",
     explication: "Suit la part du Bitcoin dans un panier figé de 11 actifs, ramenée à 100 le jour du halving. Au-dessus de 100, le Bitcoin a gagné du terrain sur les alts depuis le halving ; en dessous, il en a perdu — c'est ce qu'on appelle une saison des alts.",
@@ -520,6 +519,7 @@ const METRIQUES = {
   },
   dominance_btc: {
     titre: "Part du BTC (brut)",
+    sujet: "La part du BTC",
     axe: "Part du BTC dans le panier (%)",
     formule: "= capitalisation du BTC ÷ capitalisation des 11 actifs du panier",
     explication: "La part brute, sans mise à l'échelle. Attention : son niveau n'est pas comparable d'un cycle à l'autre, car le panier est composé des survivants de 2016 qui ont décliné face au Bitcoin. Seuls les mouvements à l'intérieur d'un même cycle se lisent.",
@@ -527,6 +527,7 @@ const METRIQUES = {
   },
   ratio_base100: {
     titre: "ETH/BTC (base 100)",
+    sujet: "Le ratio ETH/BTC",
     axe: "Ratio ETH/BTC, base 100 au halving",
     formule: "= ratio ETH/BTC aujourd'hui ÷ ce ratio le jour du halving × 100",
     explication: "Mesure la performance d'Ethereum face au Bitcoin depuis le halving. Au-dessus de 100, ETH a fait mieux que BTC ; en dessous, moins bien. C'est le baromètre le plus direct d'une rotation vers les alts.",
@@ -534,6 +535,7 @@ const METRIQUES = {
   },
   ratio_eth_btc: {
     titre: "ETH/BTC (brut)",
+    sujet: "Le ratio ETH/BTC",
     axe: "Ratio ETH/BTC",
     formule: "= prix de l'ETH ÷ prix du BTC",
     explication: "Combien de bitcoins vaut un ether. Une hausse signifie qu'ETH progresse plus vite que BTC.",
@@ -698,16 +700,123 @@ function dessinerEnTete() {
 // ni MVRV ni drawdown, mais une dominance et un ratio ETH/BTC.
 const onglets = document.getElementById("onglets");
 
+// Les cartes remplacent les anciens onglets : elles montrent la valeur du
+// jour et sa position dans la plage historique pour TOUTES les métriques à la
+// fois, et servent en même temps de sélecteur. On lit d'abord, on choisit
+// ensuite — l'inverse d'une rangée d'onglets qui n'affiche rien tant qu'on n'a
+// pas cliqué. Reconstruites à chaque dessin, car les valeurs dépendent des
+// cycles cochés.
 function construireBoutonsMetriques() {
+  dessinerCartesMetriques();
+}
+
+function dessinerCartesMetriques() {
+  const selection = cyclesSelectionnes();
   onglets.innerHTML = "";
+
   ACTIF.metriques.forEach(cle => {
-    const bouton = document.createElement("button");
-    bouton.textContent = METRIQUES[cle].titre;
-    bouton.setAttribute("role", "tab");
-    bouton.dataset.cle = cle;
-    bouton.onclick = () => { metriqueChoisie = cle; dessinerTout(); };
-    onglets.appendChild(bouton);
+    const conf = METRIQUES[cle];
+    const position = ACTIF.position.metrics[cle];
+    if (!position) return;
+
+    const stats = statistiques(valeursAuJourActuel(selection, indexMetrique(cle)));
+    const actuelle = position.current_value;
+
+    let etat = "aucun cycle affiché", classeEtat = "rien";
+    if (stats) {
+      if (actuelle > stats.max) { etat = `Au-dessus ${nommerSelection(stats.nombre)}`; classeEtat = "dessus"; }
+      else if (actuelle < stats.min) { etat = `En dessous ${nommerSelection(stats.nombre)}`; classeEtat = "dessous"; }
+      else { etat = "Dans la fourchette"; classeEtat = "dedans"; }
+    }
+
+    // Échelle de la jauge : la plage historique et la valeur du jour, avec une
+    // marge de 15 % de part et d'autre pour que rien ne colle aux bords.
+    let jauge = "";
+    if (stats) {
+      const bas = Math.min(stats.min, actuelle);
+      const haut = Math.max(stats.max, actuelle);
+      const marge = (haut - bas) * 0.15 || Math.abs(haut) * 0.1 || 1;
+      const min = bas - marge, max = haut + marge;
+      const pc = v => ((v - min) / (max - min)) * 100;
+      jauge = `
+        <div class="jauge">
+          <div class="rail"></div>
+          <div class="plage" style="left:${pc(stats.min).toFixed(1)}%;width:${(pc(stats.max) - pc(stats.min)).toFixed(1)}%"></div>
+          <div class="moi" style="left:${pc(actuelle).toFixed(1)}%"></div>
+          <div class="bornes nums"><span>${conf.format(min)}</span><span>${conf.format(max)}</span></div>
+        </div>`;
+    }
+
+    const carte = document.createElement("button");
+    carte.className = "carte-metrique";
+    carte.type = "button";
+    carte.setAttribute("role", "tab");
+    carte.dataset.cle = cle;
+    carte.setAttribute("aria-selected", cle === metriqueChoisie);
+    carte.innerHTML = `
+      <span class="nom">${conf.titre}</span>
+      <div class="val nums">${conf.format(actuelle)}</div>
+      <div class="etat ${classeEtat}">${etat}</div>
+      ${jauge}`;
+    carte.onclick = () => { metriqueChoisie = cle; dessinerTout(); };
+    onglets.appendChild(carte);
   });
+}
+
+// --- La réponse, avant tout réglage ------------------------------------------
+// Une phrase qui situe la valeur du jour par rapport à la bande des cycles
+// passés. La bande du graphique, juste en dessous, en est la démonstration :
+// on ne redessine donc rien ici. La phrase suit la métrique affichée, si bien
+// que changer de carte change la réponse.
+function dessinerReponse() {
+  const conf = METRIQUES[metriqueChoisie];
+  const stats = statistiques(
+    valeursAuJourActuel(cyclesSelectionnes(), indexMetrique(metriqueChoisie))
+  );
+  const actuelle = ACTIF.position.metrics[metriqueChoisie].current_value;
+
+  let verdict, detail;
+
+  if (!stats) {
+    verdict = `Aucun cycle de référence n'est affiché.`;
+    detail = `Cochez au moins un cycle pour situer ${ACTIF.nom} par rapport au passé.`;
+  } else {
+    const etendue = stats.min === stats.max
+      ? conf.format(stats.min)
+      : `${conf.format(stats.min)} et ${conf.format(stats.max)}`;
+
+    if (actuelle > stats.max) {
+      const loin = (actuelle - stats.max) > (stats.max - stats.min);
+      verdict = `${conf.sujet} est <span class="cle">${loin ? "bien au-dessus" : "au-dessus"}</span> de la normale des cycles passés.`;
+    } else if (actuelle < stats.min) {
+      const loin = (stats.min - actuelle) > (stats.max - stats.min);
+      verdict = `${conf.sujet} est <span class="cle">${loin ? "bien en dessous" : "en dessous"}</span> de la normale des cycles passés.`;
+    } else {
+      verdict = `${conf.sujet} reste <span class="cle-dedans">dans la normale</span> des cycles passés.`;
+    }
+
+    detail = `Au jour ${jourActuel}, les cycles précédents étaient entre ${etendue}. `
+           + `Aujourd'hui : ${conf.format(actuelle)}. `
+           + `Sur ${stats.nombre} cycle${stats.nombre > 1 ? "s" : ""} de référence seulement, `
+           + `ce qui ne suffit pas à en faire une règle.`;
+
+    // Quand les creux sont exploitables, on ajoute où l'on se situe par rapport
+    // à eux : c'est l'autre lecture attendue à l'ouverture de la page.
+    const creux = joursCreuxAffiches();
+    if (actifPorte("drawdown_pct") && creux.length >= 2 && !creuxTropDisperses()) {
+      const premier = creux[0], dernier = creux[creux.length - 1];
+      if (jourActuel < premier) {
+        detail += ` Les cycles précédents ont touché leur creux entre les jours ${premier} et ${dernier} : nous n'y sommes pas encore.`;
+      } else if (jourActuel <= dernier) {
+        detail += ` Les cycles précédents ont touché leur creux entre les jours ${premier} et ${dernier} : nous sommes à l'intérieur de cet intervalle.`;
+      } else {
+        detail += ` Les cycles précédents ont touché leur creux entre les jours ${premier} et ${dernier} : cet intervalle est derrière nous.`;
+      }
+    }
+  }
+
+  document.getElementById("verdict").innerHTML = verdict;
+  document.getElementById("verdict-detail").textContent = detail;
 }
 
 // --- Boutons de sélection de l'actif ----------------------------------------
@@ -1237,7 +1346,7 @@ function dateDuJour(n, jour) {
 function dessinerDefinition() {
   const conf = METRIQUES[metriqueChoisie];
   document.getElementById("definition").innerHTML = `
-    <span class="nom">${conf.titre}</span>
+    <span class="nom-def">${conf.titre}</span>
     <span class="formule">${conf.formule}</span>
     <p>${conf.explication}</p>
   `;
@@ -1811,9 +1920,6 @@ function dessinerAvertissementSelection() {
 }
 
 function dessinerTout() {
-  [...onglets.children].forEach(b => {
-    b.setAttribute("aria-selected", b.dataset.cle === metriqueChoisie);
-  });
   [...bascules.querySelectorAll(".bascule")].forEach(b => {
     b.setAttribute("aria-pressed", cyclesAffiches.has(Number(b.dataset.cycle)));
   });
@@ -1824,6 +1930,8 @@ function dessinerTout() {
     b.setAttribute("aria-selected", b.dataset.actif === actifChoisi);
   });
   dessinerEnTete();
+  dessinerCartesMetriques();
+  dessinerReponse();
   dessinerDefinition();
   dessinerGraphique();
   dessinerLegende();
