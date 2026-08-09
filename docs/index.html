@@ -17,6 +17,7 @@
   :root {
     --fond:      #FFFFFF;
     --repos:     #F5F7F9;
+    --teinte:    #EFF5F7;
     --carte:     #FFFFFF;
     --encre:     #0F1729;
     --doux:      #5B6779;
@@ -28,9 +29,9 @@
     --jour:      #F97316;   /* la valeur du jour */
     --jour-fond: #FDE9D5;
 
-    --cycle-1:   #2563EB;
-    --cycle-2:   #059669;
-    --cycle-3:   #7C3AED;
+    --cycle-1:   #7CA5DE;
+    --cycle-2:   #63BB98;
+    --cycle-3:   #A88CDD;
 
     --vert:      #05715A;
     --orange:    #B4480C;
@@ -43,6 +44,7 @@
     :root {
       --fond:      #0E1420;
       --repos:     #151D2C;
+      --teinte:    #121A27;
       --carte:     #16202F;
       --encre:     #E8EDF4;
       --doux:      #93A1B5;
@@ -54,9 +56,9 @@
       --jour:      #FB923C;
       --jour-fond: #3A2413;
 
-      --cycle-1:   #60A5FA;
-      --cycle-2:   #34D399;
-      --cycle-3:   #A78BFA;
+      --cycle-1:   #4E7DB8;
+      --cycle-2:   #2E8C6B;
+      --cycle-3:   #7B62B5;
 
       --vert:      #34D399;
       --orange:    #FB923C;
@@ -67,6 +69,7 @@
   }
 
   * { box-sizing: border-box; }
+  html { overflow-x: clip; }
 
   body {
     margin: 0 auto;
@@ -160,11 +163,11 @@
   /* La bande est le sujet : c'est elle qu'on lit, le reste la sert. */
   .bande-historique { fill: var(--bande-fond); opacity: 1; }
   .ligne-mediane {
-    fill: none; stroke: var(--bande); stroke-width: 1.6;
-    stroke-dasharray: 6 5; opacity: .75;
+    fill: none; stroke: var(--bande); stroke-width: 1.8;
+    stroke-dasharray: 7 5; opacity: .95;
   }
-  .ligne-historique { fill: none; stroke-width: 1.4; opacity: .5; }
-  .ligne-actuelle { fill: none; stroke: var(--encre); stroke-width: 3.4; }
+  .ligne-historique { fill: none; stroke-width: 1.2; opacity: .55; }
+  .ligne-actuelle { fill: none; stroke: var(--encre); stroke-width: 3.8; }
   .point-actuel { fill: var(--jour); stroke: var(--repos); stroke-width: 3; }
 
   .axe { stroke: var(--trait); stroke-width: 1; }
@@ -279,6 +282,20 @@
     font-size: .74rem; text-transform: uppercase; letter-spacing: .1em;
     color: var(--doux); font-weight: 700; margin: 36px 0 10px;
   }
+
+  /* Bande teintée pleine largeur. Le calcul de marge étend le fond jusqu'aux
+     bords de l'écran, puis le rendu intérieur ramène le contenu dans la
+     colonne de lecture : aucun conteneur supplémentaire n'est nécessaire. */
+  .bande-teintee {
+    background: var(--teinte);
+    margin-inline: calc(50% - 50vw);
+    padding-inline: calc(50vw - 50%);
+    padding-block: 6px 34px;
+    margin-block: 30px 0;
+  }
+  .bande-teintee > h2:first-child { margin-top: 30px; }
+  /* Dans la bande, les blocs repassent en blanc pour rester détachés du fond. */
+  .bande-teintee .lecture { background: var(--carte); border: 1px solid var(--trait); }
 
   /* ---------- Tableaux ---------- */
   .tableau-defilant { overflow-x: auto; -webkit-overflow-scrolling: touch; }
@@ -427,15 +444,20 @@
   </span>
 </div>
 
-<h2>Position actuelle par rapport aux cycles sélectionnés</h2>
-<div class="tableau-defilant"><table id="tableau"></table></div>
+<!-- Bande teintée : elle isole visuellement le relevé chiffré du reste, sans
+     ajouter ni titre ni séparateur. Le fond s'étend sur toute la largeur de
+     l'écran alors que le contenu reste aligné sur la colonne de lecture. -->
+<div class="bande-teintee">
+  <h2>Position actuelle par rapport aux cycles sélectionnés</h2>
+  <div class="tableau-defilant"><table id="tableau"></table></div>
 
-<div class="lecture" id="lecture"></div>
+  <div class="lecture" id="lecture"></div>
 
-<div id="section-creux">
-<h2>Creux de chaque cycle</h2>
-<div class="tableau-defilant"><table id="tableau-creux"></table></div>
-<p class="note" id="note-creux"></p>
+  <div id="section-creux">
+  <h2>Creux de chaque cycle</h2>
+  <div class="tableau-defilant"><table id="tableau-creux"></table></div>
+  <p class="note" id="note-creux"></p>
+  </div>
 </div>
 
 <div id="section-repere">
@@ -1355,17 +1377,17 @@ function dessinerDefinition() {
 // --- Légende, reconstruite selon les cycles affichés ------------------------
 function dessinerLegende() {
   const morceaux = [
-    `<span><i class="puce" style="background: var(--actuel)"></i> ${cycleActuel.label}</span>`,
+    `<span><i class="puce" style="background: var(--encre)"></i> ${cycleActuel.label}</span>`,
   ];
   cyclesSelectionnes().forEach(n => {
     morceaux.push(`<span><i class="puce" style="background: ${couleurCycle(n)}"></i> ${ACTIF.cycles[n].label}</span>`);
   });
-  morceaux.push(`<span><svg width="12" height="12" viewBox="0 0 12 12" style="flex:none"><path d="M6 1 L11 6 L6 11 L1 6 Z" fill="var(--texte-doux)"></path></svg> Creux du cycle (drawdown le plus profond)</span>`);
+  morceaux.push(`<span><svg width="12" height="12" viewBox="0 0 12 12" style="flex:none"><path d="M6 1 L11 6 L6 11 L1 6 Z" fill="var(--doux)"></path></svg> Creux du cycle (drawdown le plus profond)</span>`);
   if (cyclesSelectionnes().length >= 2) {
-    morceaux.push(`<span><i class="puce" style="background: var(--actuel); opacity:.25; height: 10px"></i> Jours où les cycles précédents ont touché leur creux</span>`);
+    morceaux.push(`<span><i class="puce" style="background: var(--jour); opacity:.35; height: 10px"></i> Jours où les cycles précédents ont touché leur creux</span>`);
   }
   if (cyclesSelectionnes().length >= 2) {
-    morceaux.push(`<span><i class="puce" style="background: var(--texte-doux); opacity:.7"></i> Médiane des cycles affichés (pointillés)</span>`);
+    morceaux.push(`<span><i class="puce" style="background: var(--bande); opacity:.9"></i> Médiane des cycles affichés (pointillés)</span>`);
     morceaux.push(`<span><i class="puce" style="background: var(--bande); height: 10px"></i> Fourchette min–max des cycles affichés (lissée sur ±${FENETRE_LISSAGE} jours)</span>`);
   }
   document.getElementById("legende").innerHTML = morceaux.join("");
@@ -1661,7 +1683,7 @@ function dessinerLecture() {
   // juste sous les boutons de sélection, en haut de page.
   bloc.innerHTML = `
     <p>${phrase}</p>
-    <p style="color: var(--texte-doux)">Une « fourchette » construite sur si peu de
+    <p style="color: var(--doux)">Une « fourchette » construite sur si peu de
     cycles ne décrit que quelques trajectoires passées : elle ne délimite pas ce qui est
     possible. Un percentile calculé sur trois valeurs ne peut d'ailleurs valoir que
     0, 33, 67 ou 100 % — c'est pourquoi cette page affiche la fourchette plutôt qu'un
@@ -1709,7 +1731,7 @@ function dessinerCreux() {
       else ecart = `il y a ${enJours(-difference)}`;
     }
 
-    const couleur = n === numeroActuel ? "var(--actuel)" : couleurCycle(n);
+    const couleur = n === numeroActuel ? "var(--jour)" : couleurCycle(n);
     lignes.push(`<tr>
       <td><span style="color:${couleur}">●</span> ${ACTIF.cycles[n].label}</td>
       <td>jour ${creux[0]}</td>
@@ -1764,7 +1786,7 @@ function dessinerFenetreCreux() {
       <strong>${etendue} jours d'écart</strong> sur un cycle qui en compte
       environ ${jourMax}. Ils ne décrivent donc pas la même phase, et en tirer
       une moyenne reviendrait à mélanger des moments sans rapport.</p>
-      <p style="color: var(--texte-doux)">Cela vient du découpage : plusieurs
+      <p style="color: var(--doux)">Cela vient du découpage : plusieurs
       altcoins ont touché leur point bas lors du krach de mars 2020, que
       l'alignement sur les halvings du Bitcoin place tantôt à la fin d'un cycle,
       tantôt au début du suivant. Le tableau des creux ci-dessus reste
@@ -1793,7 +1815,7 @@ function dessinerFenetreCreux() {
         <strong>antérieur au halving</strong> qui sert d'ancrage. ${ACTIF.nom}
         n'ayant pas de halving propre, son cycle est aligné sur celui du
         Bitcoin, et cet alignement ne tombe pas juste ici.</p>
-        <p style="color: var(--texte-doux)">Ce n'est pas un réglage à corriger
+        <p style="color: var(--doux)">Ce n'est pas un réglage à corriger
         mais une limite de la méthode, affichée plutôt que masquée. Il reste
         moins de deux creux exploitables, donc rien à comparer.</p>`;
     } else {
@@ -1851,7 +1873,7 @@ function dessinerFenetreCreux() {
     ${jourActuel >= premier && jourActuel <= dernier
       ? "à l'intérieur de cet intervalle"
       : "en dehors de cet intervalle"}.</p>
-    <p style="color: var(--texte-doux)">Ces dates indiquent quand les cycles
+    <p style="color: var(--doux)">Ces dates indiquent quand les cycles
     précédents ont touché leur creux, rien de plus. Le repère théorique
     ci-dessus en est une moyenne de position, pas une observation : il ne
     décrit aucun évènement constaté sur le cycle en cours. Trois observations
