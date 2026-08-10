@@ -149,6 +149,7 @@
     gap: 18px; align-items: start; margin-top: 20px;
   }
   .colonne-graphique { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+  .colonne-cotes { display: flex; flex-direction: column; gap: 12px; }
 
   .cadre-graphique {
     background: var(--repos); border-radius: var(--rond);
@@ -167,7 +168,10 @@
     stroke-dasharray: 7 5; opacity: .95;
   }
   .ligne-historique { fill: none; stroke-width: 1.2; opacity: .55; }
-  .ligne-actuelle { fill: none; stroke: var(--encre); stroke-width: 3.8; }
+  /* Orange de la charte (celui du point du logo et du repère du jour) :
+     le cycle en cours doit se reconnaître à la même couleur partout sur
+     la page, pas seulement au point qui le termine. */
+  .ligne-actuelle { fill: none; stroke: var(--jour); stroke-width: 3.8; }
   .point-actuel { fill: var(--jour); stroke: var(--repos); stroke-width: 3; }
 
   .axe { stroke: var(--trait); stroke-width: 1; }
@@ -425,13 +429,18 @@
 
     <div class="legende" id="legende"></div>
     <p class="infobulle" id="infobulle"></p>
-    <div class="definition" id="definition"></div>
   </div>
 
-  <!-- Les cartes sont le sélecteur de métrique : on voit les trois positions
-       d'un coup d'œil, et cliquer l'une d'elles la porte sur le graphique. -->
-  <div class="cartes" id="onglets" role="tablist"
-       aria-label="Indicateurs — cliquer pour afficher la courbe"></div>
+  <div class="colonne-cotes">
+    <!-- Les cartes sont le sélecteur de métrique : on voit les trois positions
+         d'un coup d'œil, et cliquer l'une d'elles la porte sur le graphique. -->
+    <div class="cartes" id="onglets" role="tablist"
+         aria-label="Indicateurs — cliquer pour afficher la courbe"></div>
+
+    <!-- La définition suit les cartes : elle explique la métrique qu'on vient
+         d'y choisir, elle appartient donc à la même colonne. -->
+    <div class="definition" id="definition"></div>
+  </div>
 </div>
 
 <div class="avertissement">
@@ -1377,7 +1386,7 @@ function dessinerDefinition() {
 // --- Légende, reconstruite selon les cycles affichés ------------------------
 function dessinerLegende() {
   const morceaux = [
-    `<span><i class="puce" style="background: var(--encre)"></i> ${cycleActuel.label}</span>`,
+    `<span><i class="puce" style="background: var(--jour)"></i> ${cycleActuel.label}</span>`,
   ];
   cyclesSelectionnes().forEach(n => {
     morceaux.push(`<span><i class="puce" style="background: ${couleurCycle(n)}"></i> ${ACTIF.cycles[n].label}</span>`);
