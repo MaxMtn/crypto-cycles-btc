@@ -171,7 +171,7 @@
   /* Orange de la charte (celui du point du logo et du repère du jour) :
      le cycle en cours doit se reconnaître à la même couleur partout sur
      la page, pas seulement au point qui le termine. */
-  .ligne-actuelle { fill: none; stroke: var(--jour); stroke-width: 3.8; }
+  .ligne-actuelle { fill: none; stroke: var(--jour); stroke-width: 2; }
   .point-actuel { fill: var(--jour); stroke: var(--repos); stroke-width: 3; }
 
   .axe { stroke: var(--trait); stroke-width: 1; }
@@ -210,6 +210,7 @@
   /* ---------- Cartes de métriques ---------- */
   .cartes { display: flex; flex-direction: column; gap: 10px; }
   .carte-metrique {
+    position: relative;
     display: block; width: 100%; text-align: left; font: inherit; cursor: pointer;
     background: var(--carte); border: 1px solid var(--trait); border-radius: 12px;
     padding: 14px 16px 12px; color: var(--encre);
@@ -217,9 +218,32 @@
   }
   .carte-metrique:hover { border-color: var(--doux); }
   .carte-metrique[aria-selected="true"] {
-    border-color: var(--encre); box-shadow: var(--ombre-1);
+    /* Ombre plus marquée que celle des autres blocs de la page : la carte
+       active doit se détacher visuellement, pas seulement changer de bord. */
+    border-color: var(--jour); box-shadow: var(--ombre-2);
   }
-  .carte-metrique .nom { font-size: .8rem; color: var(--doux); }
+
+  /* Petit indicateur radio en coin, présent sur les trois cartes pour signaler
+     qu'elles se choisissent comme un groupe de boutons ; seule celle qui est
+     déjà choisie porte le mot "Actif". */
+  .badge-actif {
+    position: absolute; top: 12px; right: 14px;
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: .66rem; font-weight: 700; letter-spacing: .04em;
+    text-transform: uppercase; color: var(--doux);
+  }
+  .badge-actif .radio {
+    width: 12px; height: 12px; border-radius: 50%;
+    border: 1.5px solid var(--doux); background: var(--carte);
+    position: relative; flex: none;
+  }
+  .carte-metrique[aria-selected="true"] .badge-actif { color: var(--jour); }
+  .carte-metrique[aria-selected="true"] .badge-actif .radio { border-color: var(--jour); }
+  .carte-metrique[aria-selected="true"] .badge-actif .radio::after {
+    content: ""; position: absolute; inset: 2.5px; border-radius: 50%; background: var(--jour);
+  }
+
+  .carte-metrique .nom { font-size: .8rem; color: var(--doux); padding-right: 62px; }
   .carte-metrique .val {
     font-size: 1.65rem; font-weight: 700; letter-spacing: -.03em;
     line-height: 1.1; margin-top: 2px;
@@ -778,13 +802,18 @@ function dessinerCartesMetriques() {
         </div>`;
     }
 
+    const active = cle === metriqueChoisie;
     const carte = document.createElement("button");
     carte.className = "carte-metrique";
     carte.type = "button";
     carte.setAttribute("role", "tab");
     carte.dataset.cle = cle;
-    carte.setAttribute("aria-selected", cle === metriqueChoisie);
+    carte.setAttribute("aria-selected", active);
+    // Le petit rond en coin signale, sur les trois cartes, qu'elles se
+    // choisissent comme des boutons radio ; le mot n'apparaît que sur celle
+    // qui l'est déjà, pour ne pas prétendre le contraire sur les deux autres.
     carte.innerHTML = `
+      <span class="badge-actif"><i class="radio"></i>${active ? "Actif" : ""}</span>
       <span class="nom">${conf.titre}</span>
       <div class="val nums">${conf.format(actuelle)}</div>
       <div class="etat ${classeEtat}">${etat}</div>
