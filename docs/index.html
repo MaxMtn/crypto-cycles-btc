@@ -561,6 +561,12 @@ const METRIQUES = {
     formule: "= écart entre le prix du jour et le plus haut atteint jusque-là",
     explication: "Mesure la baisse depuis le record précédent. 0 % signifie que le prix est sur un nouveau record ; −50 % qu'il a été divisé par deux depuis son plus haut.",
     format: v => v.toFixed(1) + " %",
+    // Le drawdown est un pourcentage négatif où une valeur plus haute (plus
+    // proche de 0) veut dire une baisse plus faible : "au-dessus de la
+    // normale" s'y lirait à l'envers, comme si le repli avait été plus sévère
+    // alors que c'est l'inverse. sensInverse fait basculer la formulation sur
+    // "plus/moins profond" partout où ce texte est généré.
+    sensInverse: true,
   },
 
   // --- Indicateurs de marché (actif « Marché » uniquement) ---
@@ -779,8 +785,17 @@ function dessinerCartesMetriques() {
 
     let etat = "aucun cycle affiché", classeEtat = "rien";
     if (stats) {
-      if (actuelle > stats.max) { etat = `Au-dessus ${nommerSelection(stats.nombre)}`; classeEtat = "dessus"; }
-      else if (actuelle < stats.min) { etat = `En dessous ${nommerSelection(stats.nombre)}`; classeEtat = "dessous"; }
+      if (actuelle > stats.max) {
+        etat = conf.sensInverse
+          ? `Moins profond que ${nommerSelectionQue(stats.nombre)}`
+          : `Au-dessus ${nommerSelection(stats.nombre)}`;
+        classeEtat = "dessus";
+      } else if (actuelle < stats.min) {
+        etat = conf.sensInverse
+          ? `Plus profond que ${nommerSelectionQue(stats.nombre)}`
+          : `En dessous ${nommerSelection(stats.nombre)}`;
+        classeEtat = "dessous";
+      }
       else { etat = "Dans la fourchette"; classeEtat = "dedans"; }
     }
 
@@ -847,10 +862,14 @@ function dessinerReponse() {
 
     if (actuelle > stats.max) {
       const loin = (actuelle - stats.max) > (stats.max - stats.min);
-      verdict = `${conf.sujet} est <span class="cle">${loin ? "bien au-dessus" : "au-dessus"}</span> de la normale des cycles passés.`;
+      verdict = conf.sensInverse
+        ? `${conf.sujet} est <span class="cle">${loin ? "nettement moins profond" : "moins profond"}</span> que ${nommerSelectionQue(stats.nombre)}.`
+        : `${conf.sujet} est <span class="cle">${loin ? "bien au-dessus" : "au-dessus"}</span> de la normale des cycles passés.`;
     } else if (actuelle < stats.min) {
       const loin = (stats.min - actuelle) > (stats.max - stats.min);
-      verdict = `${conf.sujet} est <span class="cle">${loin ? "bien en dessous" : "en dessous"}</span> de la normale des cycles passés.`;
+      verdict = conf.sensInverse
+        ? `${conf.sujet} est <span class="cle">${loin ? "nettement plus profond" : "plus profond"}</span> que ${nommerSelectionQue(stats.nombre)}.`
+        : `${conf.sujet} est <span class="cle">${loin ? "bien en dessous" : "en dessous"}</span> de la normale des cycles passés.`;
     } else {
       verdict = `${conf.sujet} reste <span class="cle-dedans">dans la normale</span> des cycles passés.`;
     }
@@ -1655,6 +1674,14 @@ function nommerSelection(nombre) {
   return `des ${nombre} cycles sélectionnés`;
 }
 
+// Variante pour les tournures en "que" ("moins profond QUE le cycle...") :
+// "que" ne se contracte pas avec l'article, contrairement à "de" ci-dessus
+// (de + le = du, de + les = des).
+function nommerSelectionQue(nombre) {
+  if (nombre === 1) return "le cycle sélectionné";
+  return `les ${nombre} cycles sélectionnés`;
+}
+
 // --- Tableau récapitulatif --------------------------------------------------
 function dessinerTableau() {
   const selection = cyclesSelectionnes();
@@ -1672,9 +1699,15 @@ function dessinerTableau() {
         ? conf.format(stats.min)
         : `${conf.format(stats.min)} → ${conf.format(stats.max)}`;
       mediane = conf.format(stats.mediane);
-      if (position.current_value > stats.max) situation = `au-dessus ${nommerSelection(stats.nombre)}`;
-      else if (position.current_value < stats.min) situation = `en dessous ${nommerSelection(stats.nombre)}`;
-      else situation = "dans la fourchette";
+      if (position.current_value > stats.max) {
+        situation = conf.sensInverse
+          ? `moins profond que ${nommerSelectionQue(stats.nombre)}`
+          : `au-dessus ${nommerSelection(stats.nombre)}`;
+      } else if (position.current_value < stats.min) {
+        situation = conf.sensInverse
+          ? `plus profond que ${nommerSelectionQue(stats.nombre)}`
+          : `en dessous ${nommerSelection(stats.nombre)}`;
+      } else situation = "dans la fourchette";
     }
 
     lignes.push(`<tr>
@@ -1708,13 +1741,31 @@ function dessinerLecture() {
     const etendue = stats.min === stats.max
       ? conf.format(stats.min)
       : `${conf.format(stats.min)} → ${conf.format(stats.max)}`;
-    let situation;
-    if (position.current_value > stats.max) situation = `au-dessus ${nommerSelection(stats.nombre)}`;
-    else if (position.current_value < stats.min) situation = `en dessous ${nommerSelection(stats.nombre)}`;
-    else situation = `dans la fourchette ${nommerSelection(stats.nombre)}`;
-    phrase = `Au jour ${jourActuel} après le halving, la valeur actuelle
-      (<strong>${conf.format(position.current_value)}</strong>) se situe
-      ${situation} au même stade (${etendue}).`;
+    // "se situe au-dessus/en dessous" convient à la plupart des métriques,
+    // mais pas au drawdown (sensInverse) : une valeur "au-dessus" y signifie
+    // une baisse plus faible, pas plus forte. Le verbe change avec elle plutôt
+    // que de forcer un adjectif dans un gabarit qui ne le porte pas.
+    if (position.current_value > stats.max) {
+      phrase = conf.sensInverse
+        ? `Au jour ${jourActuel} après le halving, le drawdown actuel
+          (<strong>${conf.format(position.current_value)}</strong>) est moins
+          profond que ${nommerSelectionQue(stats.nombre)} au même stade (${etendue}).`
+        : `Au jour ${jourActuel} après le halving, la valeur actuelle
+          (<strong>${conf.format(position.current_value)}</strong>) se situe
+          au-dessus ${nommerSelection(stats.nombre)} au même stade (${etendue}).`;
+    } else if (position.current_value < stats.min) {
+      phrase = conf.sensInverse
+        ? `Au jour ${jourActuel} après le halving, le drawdown actuel
+          (<strong>${conf.format(position.current_value)}</strong>) est plus
+          profond que ${nommerSelectionQue(stats.nombre)} au même stade (${etendue}).`
+        : `Au jour ${jourActuel} après le halving, la valeur actuelle
+          (<strong>${conf.format(position.current_value)}</strong>) se situe
+          en dessous ${nommerSelection(stats.nombre)} au même stade (${etendue}).`;
+    } else {
+      phrase = `Au jour ${jourActuel} après le halving, la valeur actuelle
+        (<strong>${conf.format(position.current_value)}</strong>) se situe
+        dans la fourchette ${nommerSelection(stats.nombre)} au même stade (${etendue}).`;
+    }
   }
 
   // La définition de la métrique n'est pas répétée ici : elle est affichée
