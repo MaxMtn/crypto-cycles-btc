@@ -1,10 +1,10 @@
 {
   "asset": "ltc",
   "asset_name": "Litecoin",
-  "generated_date": "2026-08-08",
+  "generated_date": "2026-08-09",
   "current_cycle": {
     "halving_number": 4,
-    "days_since_halving": 840
+    "days_since_halving": 841
   },
   "reference_cycles_used": [
     2,
@@ -15,45 +15,45 @@
   ],
   "caveat": "Comparaison basée sur seulement 2 cycles historiques complets : chaque écart peut refléter le hasard autant qu'un signal réel. Le cycle actuel diffère structurellement des précédents (ETF spot, flux institutionnels, contexte de taux) : ne pas traiter l'historique comme un gabarit fiable. Ceci n'est pas une prédiction. Le cycle 1 est écarté de la comparaison : l'historique de Litecoin commence le 2013-04-01 et ne les couvre pas entièrement. Litecoin n'a pas de halving : son cycle est ici aligné sur les halvings du Bitcoin, en supposant que celui-ci pilote le reste du marché. C'est une hypothèse de lecture, pas un fait.",
   "metrics": {
-    "mvrv": {
-      "current_value": 0.6032,
+    "drawdown_pct": {
+      "current_value": -88.2075,
       "historical_values_same_day": {
-        "cycle_2": 0.4775,
-        "cycle_3": 0.585
+        "cycle_2": -85.6959,
+        "cycle_3": -86.2048
       },
-      "historical_min": 0.4775,
-      "historical_median": 0.5312,
-      "historical_max": 0.585,
+      "historical_min": -86.2048,
+      "historical_median": -85.9504,
+      "historical_max": -85.6959,
+      "rank_percentile_exact_day": 0.0,
+      "rank_percentile_windowed": 0.0,
+      "windowed_sample_size": 58,
+      "window_days": 14
+    },
+    "mvrv": {
+      "current_value": 0.5967,
+      "historical_values_same_day": {
+        "cycle_2": 0.4765,
+        "cycle_3": 0.5603
+      },
+      "historical_min": 0.4765,
+      "historical_median": 0.5184,
+      "historical_max": 0.5603,
       "rank_percentile_exact_day": 100.0,
-      "rank_percentile_windowed": 74.1,
+      "rank_percentile_windowed": 72.4,
       "windowed_sample_size": 58,
       "window_days": 14
     },
     "mayer_multiple": {
-      "current_value": 0.883,
+      "current_value": 0.8754,
       "historical_values_same_day": {
-        "cycle_2": 0.5766,
-        "cycle_3": 0.6818
+        "cycle_2": 0.5773,
+        "cycle_3": 0.6543
       },
-      "historical_min": 0.5766,
-      "historical_median": 0.6292,
-      "historical_max": 0.6818,
+      "historical_min": 0.5773,
+      "historical_median": 0.6158,
+      "historical_max": 0.6543,
       "rank_percentile_exact_day": 100.0,
       "rank_percentile_windowed": 100.0,
-      "windowed_sample_size": 58,
-      "window_days": 14
-    },
-    "drawdown_pct": {
-      "current_value": -88.0776,
-      "historical_values_same_day": {
-        "cycle_2": -85.659,
-        "cycle_3": -85.5614
-      },
-      "historical_min": -85.659,
-      "historical_median": -85.6102,
-      "historical_max": -85.5614,
-      "rank_percentile_exact_day": 0.0,
-      "rank_percentile_windowed": 0.0,
       "windowed_sample_size": 58,
       "window_days": 14
     }
