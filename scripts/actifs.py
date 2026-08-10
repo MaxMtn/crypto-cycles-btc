@@ -67,8 +67,11 @@ ACTIFS = {
     },
 }
 
-# Métriques par défaut, pour les actifs qui n'en déclarent pas.
-METRIQUES_STANDARD = ["mvrv", "mayer_multiple", "drawdown_pct"]
+# Métriques par défaut, pour les actifs qui n'en déclarent pas. Le drawdown
+# est en tête : c'est la métrique active au premier chargement de la page
+# (voir metriqueChoisie dans docs/index.html), sa carte doit donc apparaître
+# en premier plutôt qu'en bas de la colonne.
+METRIQUES_STANDARD = ["drawdown_pct", "mvrv", "mayer_multiple"]
 
 
 # Nombre de décimales conservées dans le fichier envoyé à la page. Inutile
