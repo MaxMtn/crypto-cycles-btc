@@ -29,37 +29,23 @@ ACTIFS = {
         # de référence, car incomplet.
         "debut_donnees": "2015-08-08",
     },
-    # Altcoins retenus le 2026-08-08. Critère : disposer des quatre métriques
-    # ET couvrir entièrement au moins deux cycles BTC (2016 et 2020). Un seul
-    # cycle de référence ne permet aucune fourchette.
-    # Écartés pour un seul cycle complet : ADA, BCH, LINK, ETC.
-    # Écarté faute de MVRV : XMR.
-    # Disponibles mais non retenus car marginaux aujourd'hui : DASH, DCR, DGB, XEM.
-    "ltc": {
-        "nom": "Litecoin",
-        "symbole": "LTC",
-        "debut_donnees": "2013-04-01",
-    },
-    "xrp": {
-        "nom": "XRP",
-        "symbole": "XRP",
-        "debut_donnees": "2014-08-15",
-    },
-    "doge": {
-        "nom": "Dogecoin",
-        "symbole": "DOGE",
-        "debut_donnees": "2014-01-23",
-    },
-    "xlm": {
-        "nom": "Stellar",
-        "symbole": "XLM",
-        "debut_donnees": "2015-09-30",
-    },
+    # Altcoins (LTC, XRP, DOGE, XLM) retirés le 2026-08-11 : le calque du
+    # moteur de cycles BTC (halving, MVRV, comparaison à 2 cycles) ne leur
+    # apportait pas grand-chose — ils n'ont pas de halving propre, et les
+    # comparer à seulement 2 cycles passés était la fourchette la plus fragile
+    # de tout le site. Voir CLAUDE.md pour la discussion complète.
+    #
+    # Le panier fixe utilisé par fetch_marche.py pour calculer la dominance du
+    # BTC (scripts/fetch_marche.py, PANIER) continue d'inclure ltc/xrp/doge/xlm
+    # comme composantes de calcul : retirer leur onglet d'analyse individuel
+    # ne change rien à ce panier, qui doit rester figé pour que l'indexation
+    # base 100 reste comparable d'un cycle à l'autre.
+    #
     # Indicateurs de marché : pas un actif mais deux séries construites, d'où
     # "synthetique" (fetch_data.py les ignore, fetch_marche.py les produit).
     "marche": {
-        "nom": "Marché",
-        "symbole": "BTC vs alts",
+        "nom": "BTC Dominance",
+        "symbole": "vs marché",
         "debut_donnees": "2016-07-09",
         "synthetique": True,
         "metriques": ["dominance_base100", "dominance_btc",

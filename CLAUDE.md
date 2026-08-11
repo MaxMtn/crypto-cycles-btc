@@ -185,6 +185,38 @@ dans un panier précis.
 Pour ajouter un actif : vérifier sa couverture Coin Metrics, puis ajouter une
 ligne dans `scripts/actifs.py`. Rien d'autre à modifier.
 
+*Retrait des altcoins et diagnostic de tendance : fait le 2026-08-11.* LTC,
+XRP, DOGE et XLM sont retirés comme actifs analysables individuellement.
+Motif de l'utilisateur : calquer le moteur de cycles BTC sur des actifs sans
+halving propre, comparés à seulement 2 cycles, n'apportait pas assez pour
+justifier leur place — la vraie question pour les alts n'est pas « où en est
+XRP dans son cycle » mais « l'argent tourne-t-il de BTC vers le reste du
+marché ». Le panier fixe utilisé par `fetch_marche.py` pour calculer la
+dominance **n'a pas changé** : il continue d'inclure ltc/xrp/doge/xlm comme
+composantes de calcul, seul leur onglet d'analyse individuel disparaît.
+
+L'actif « Marché » est renommé **BTC Dominance** et change de mode de lecture.
+Motif : l'utilisateur a fait remarquer que ce cycle voit des flux ETF et
+institutionnels concentrés sur le BTC d'une façon que 2016 et 2020 n'ont pas
+connue (confirmé par les données : dominance base 100 à 106,7 aujourd'hui
+contre 63,9-82,0 aux cycles précédents au même stade) — comparer à un gabarit
+historique qui ne se répète peut-être plus serait trompeur. La page affiche
+donc en priorité la **tendance récente** (variation sur les 90 derniers
+jours, seuil de 2 points en dessous duquel c'est déclaré « stable » plutôt que
+sur-interprété comme un signal) et garde la comparaison aux cycles passés en
+second plan, avec la réserve institutionnelle explicitement nommée dans le
+texte plutôt que cachée. Voir `calculerTendance()` et
+`dessinerReponseTendance()` dans docs/index.html.
+
+Bug corrigé au passage, présent depuis la création de l'actif « Marché » (donc
+antérieur à ce jour, découvert seulement maintenant) : le tracé de la zone
+« creux des cycles précédents » sur le graphique n'était pas protégé par
+`actifPorte("drawdown_pct")`. Pour un actif sans drawdown, `indexMetrique()`
+renvoie -1, et `p[-1]` en JavaScript vaut `undefined` plutôt que de lever une
+erreur — le bug passait donc inaperçu et affichait une bande fantôme au jour 0.
+Sert de rappel : une fonction qui suppose une métrique présente doit soit la
+vérifier, soit être appelée seulement depuis un code déjà protégé.
+
 **Phase 3 — Portefeuille**
 Saisie manuelle des positions dans un CSV du dépôt (gratuit, cinq minutes par
 mois, aucun risque de sécurité). Croisement des positions avec les scores de

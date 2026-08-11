@@ -838,6 +838,84 @@ function dessinerCartesMetriques() {
   });
 }
 
+// --- Tendance récente, pour la vue BTC Dominance ----------------------------
+// Comparer la rotation actuelle aux cycles passés suppose qu'ils se répètent.
+// Or ce cycle voit des flux ETF et institutionnels concentrés sur le BTC d'une
+// façon que 2016 et 2020 n'ont pas connue (voir CLAUDE.md) : le gabarit
+// historique peut ne plus tenir, et le confirmer aveuglément serait
+// trompeur. Cette vue met donc en avant la tendance RÉELLE des derniers
+// jours — ce qui se passe, pas ce qui devrait se passer par analogie — et
+// garde la comparaison aux cycles passés comme repère secondaire, assorti
+// de sa réserve.
+const FENETRE_TENDANCE = 90;
+// En dessous de ce seuil (en points d'indice base 100, ou en points de
+// pourcentage pour la dominance brute), la variation est trop faible pour
+// être qualifiée de tendance : le bruit quotidien produit facilement un tel
+// écart sans qu'aucune rotation réelle ne soit en cours.
+const SEUIL_TENDANCE = 2;
+
+function calculerTendance(cle) {
+  const index = indexMetrique(cle);
+  const points = cycleActuel.points;
+  const fin = valeurAuJour(points, jourActuel, index);
+  const jourDebut = Math.max(0, jourActuel - FENETRE_TENDANCE);
+  const debut = valeurAuJour(points, jourDebut, index);
+  if (fin === null || debut === null) return null;
+  return { variation: fin - debut, jours: jourActuel - jourDebut };
+}
+
+function dessinerReponseTendance(conf) {
+  const tendance = calculerTendance(metriqueChoisie);
+  const stats = statistiques(
+    valeursAuJourActuel(cyclesSelectionnes(), indexMetrique(metriqueChoisie))
+  );
+  const actuelle = ACTIF.position.metrics[metriqueChoisie].current_value;
+  const estDominance = metriqueChoisie.startsWith("dominance");
+
+  let verdict, detail;
+
+  if (!tendance) {
+    verdict = `Pas assez de recul pour dégager une tendance.`;
+    detail = `Il faut plusieurs semaines de données sur ce cycle pour comparer un point à un autre.`;
+  } else {
+    const { variation, jours } = tendance;
+    const stable = Math.abs(variation) < SEUIL_TENDANCE;
+    const hausse = variation > 0;
+    const signe = hausse ? "+" : "−";
+    const ampleur = conf.format(Math.abs(variation));
+
+    if (stable) {
+      verdict = `${conf.sujet} est <span class="cle-dedans">stable</span> depuis ${jours} jours.`;
+    } else if (hausse) {
+      verdict = estDominance
+        ? `Le BTC <span class="cle">gagne du terrain</span> sur le reste du marché.`
+        : `ETH <span class="cle">regagne du terrain</span> face au BTC.`;
+    } else {
+      verdict = estDominance
+        ? `Le BTC <span class="cle">perd du terrain</span> face au reste du marché.`
+        : `ETH <span class="cle">continue de perdre du terrain</span> face au BTC.`;
+    }
+
+    detail = stable
+      ? `${conf.sujet} n'a varié que de ${signe}${ampleur} sur les ${jours} derniers jours — trop peu pour y voir une tendance plutôt que du bruit.`
+      : `${conf.sujet} a évolué de ${signe}${ampleur} sur les ${jours} derniers jours (aujourd'hui : ${conf.format(actuelle)}).`;
+
+    if (stats) {
+      const etendue = stats.min === stats.max
+        ? conf.format(stats.min)
+        : `${conf.format(stats.min)} et ${conf.format(stats.max)}`;
+      const pluriel = stats.nombre > 1;
+      detail += ` À titre de comparaison, ${pluriel ? `les ${stats.nombre} cycles précédents étaient` : `le cycle précédent était`}`
+              + ` entre ${etendue} au même stade — mais ce cycle diffère structurellement des précédents`
+              + ` (flux ETF et institutionnels concentrés sur le BTC) : rien ne garantit que la rotation`
+              + ` observée alors se reproduise cette fois.`;
+    }
+  }
+
+  document.getElementById("verdict").innerHTML = verdict;
+  document.getElementById("verdict-detail").textContent = detail;
+}
+
 // --- La réponse, avant tout réglage ------------------------------------------
 // Une phrase qui situe la valeur du jour par rapport à la bande des cycles
 // passés. La bande du graphique, juste en dessous, en est la démonstration :
@@ -845,6 +923,12 @@ function dessinerCartesMetriques() {
 // que changer de carte change la réponse.
 function dessinerReponse() {
   const conf = METRIQUES[metriqueChoisie];
+
+  if (actifChoisi === "marche") {
+    dessinerReponseTendance(conf);
+    return;
+  }
+
   const stats = statistiques(
     valeursAuJourActuel(cyclesSelectionnes(), indexMetrique(metriqueChoisie))
   );
@@ -1157,11 +1241,18 @@ function dessinerGraphique() {
   // reportée sur la durée du cycle en cours. C'est une observation sur le
   // passé affichée à l'échelle du présent, pas une prévision : voir la note
   // sous le tableau des creux.
-  const joursCreuxPasses = selection
-    .map(n => creuxDuCycle(n))
-    .filter(Boolean)
-    .map(c => c[0])
-    .sort((a, b) => a - b);
+  // N'a de sens que pour les actifs qui portent un drawdown : sans cette
+  // condition, indexMetrique("drawdown_pct") renvoie -1 pour "marche", et
+  // creuxDuCycle lit p[-1] (= undefined en JavaScript, pas une erreur) sur
+  // chaque point, ce qui désignait à tort le jour 0 comme "creux" et faisait
+  // apparaître une bande fantôme au tout début du graphique.
+  const joursCreuxPasses = actifPorte("drawdown_pct")
+    ? selection
+        .map(n => creuxDuCycle(n))
+        .filter(Boolean)
+        .map(c => c[0])
+        .sort((a, b) => a - b)
+    : [];
 
   if (joursCreuxPasses.length >= 2) {
     const x1 = echelleX(joursCreuxPasses[0]);
