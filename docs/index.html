@@ -172,6 +172,9 @@
      le cycle en cours doit se reconnaître à la même couleur partout sur
      la page, pas seulement au point qui le termine. */
   .ligne-actuelle { fill: none; stroke: var(--jour); stroke-width: 2; }
+  /* Pointillés marqués : une projection ne doit jamais se confondre avec une
+     courbe mesurée, ni au premier ni au second coup d'œil. */
+  .ligne-projection { fill: none; stroke-width: 2; stroke-dasharray: 2 4; opacity: .8; stroke-linecap: round; }
   .point-actuel { fill: var(--jour); stroke: var(--repos); stroke-width: 3; }
 
   .axe { stroke: var(--trait); stroke-width: 1; }
@@ -206,6 +209,27 @@
   .legende span { display: inline-flex; align-items: center; gap: 6px; }
   .puce { width: 16px; height: 3px; border-radius: 2px; display: inline-block; flex: none; }
   .infobulle { font-size: .85rem; color: var(--doux); min-height: 1.5em; margin: 0; }
+
+  /* Bloc des projections par analogie : le bouton reste discret (même gabarit
+     que les autres boutons de réglage) tant qu'il n'est pas activé ; l'encadré
+     d'explication n'apparaît qu'une fois le mode allumé, jamais avant. */
+  .bloc-projection { margin-top: 4px; }
+  .bouton-projection {
+    font: inherit; font-size: .85rem; padding: 7px 14px;
+    border-radius: 999px; border: 1px dashed var(--trait);
+    background: var(--carte); color: var(--doux); cursor: pointer;
+  }
+  .bouton-projection:hover { border-color: var(--doux); }
+  .bouton-projection[aria-pressed="true"] {
+    border-style: solid; border-color: var(--encre);
+    background: var(--encre); color: var(--fond);
+  }
+  .note-projection {
+    margin-top: 10px; padding: 13px 15px; font-size: .85rem;
+    color: var(--doux); background: var(--repos); border-radius: 10px;
+  }
+  .note-projection:empty { display: none; padding: 0; margin: 0; }
+  .note-projection strong { color: var(--encre); }
 
   /* ---------- Cartes de métriques ---------- */
   .cartes { display: flex; flex-direction: column; gap: 10px; }
@@ -453,6 +477,16 @@
 
     <div class="legende" id="legende"></div>
     <p class="infobulle" id="infobulle"></p>
+
+    <!-- Projections par analogie : décalque de chaque cycle affiché à partir
+         d'aujourd'hui. Désactivé par défaut, jamais mêlé au reste de la page
+         sans que ce bouton ait été cliqué. -->
+    <div class="bloc-projection">
+      <button type="button" id="bouton-projection" class="bouton-projection" aria-pressed="false">
+        Afficher les projections par analogie
+      </button>
+      <div class="note-projection" id="note-projection"></div>
+    </div>
   </div>
 
   <div class="colonne-cotes">
@@ -517,9 +551,10 @@
   de marché et du MVRV.</p>
   <p>Cet outil est une aide à la réflexion personnelle. Il ne constitue pas un
   conseil en investissement, ne formule aucun prix cible, et n'est destiné à
-  aucune diffusion à des tiers. Le repère théorique de creux qu'il affiche est
-  le résultat d'un calcul sur trois cycles passés, affiché à la demande : ce
-  n'est pas une prévision, et il ne doit pas être lu comme telle.</p>
+  aucune diffusion à des tiers. Le repère théorique de creux et les
+  projections par analogie qu'il peut afficher sont le résultat de calculs
+  sur deux ou trois cycles passés, montrés séparément et à la demande : ce ne
+  sont pas des prévisions, et ils ne doivent pas être lus comme telles.</p>
 </footer>
 
 <script>
@@ -665,8 +700,16 @@ let ACTIF, numeroActuel, cycleActuel, jourActuel, jourMax, cyclesAffiches;
 
 let metriqueChoisie = "drawdown_pct";
 
+// Projections par analogie : décalque chaque cycle sélectionné pour qu'il
+// parte de la valeur réelle d'aujourd'hui, désactivé par défaut — voir
+// calculerProjection() plus bas. Remise à zéro à chaque changement d'actif,
+// pour ne jamais faire apparaître ce mode sans que l'utilisateur l'ait choisi
+// dans le nouveau contexte.
+let projectionsActives = false;
+
 function chargerActif(cle) {
   actifChoisi = cle;
+  projectionsActives = false;
   ACTIF = DONNEES.actifs[cle];
   numeroActuel = ACTIF.current_cycle_number;
   cycleActuel = ACTIF.cycles[numeroActuel];
@@ -1079,6 +1122,28 @@ function fabriquerEchelleY(min, max) {
   return v => MARGE.haut + (1 - (v - bas) / (haut - bas)) * hauteurTrace;
 }
 
+// --- Projection par analogie -------------------------------------------------
+// Décalque un cycle passé pour qu'il parte de la valeur RÉELLE d'aujourd'hui,
+// puis suive point par point la même évolution relative que ce cycle a
+// connue à partir du même jour. Ce n'est pas une prévision : c'est un cycle
+// passé traduit dans le présent, montré séparément pour chaque cycle affiché
+// et jamais fusionné en une seule réponse ni assorti d'une probabilité —
+// avec 2 ou 3 cycles de référence, en attribuer une fabriquerait une
+// précision que les données n'ont pas. Activé volontairement (voir le bouton
+// sous le graphique), désactivé par défaut : voir CLAUDE.md pour les
+// conditions posées à cette exception à la règle "aucune prédiction".
+function calculerProjection(n, index) {
+  const refPoints = ACTIF.cycles[n].points;
+  const valeurRefAuMemeJour = valeurAuJour(refPoints, jourActuel, index);
+  const valeurActuelle = valeurAuJour(cycleActuel.points, jourActuel, index);
+  if (valeurRefAuMemeJour === null || valeurActuelle === null) return [];
+
+  const decalage = valeurActuelle - valeurRefAuMemeJour;
+  return refPoints
+    .filter(p => p[0] > jourActuel && p[index] !== null)
+    .map(p => [p[0], p[index] + decalage]);
+}
+
 function bornesMetrique(index) {
   // L'échelle verticale ne tient compte que de ce qui est réellement à
   // l'écran : les courbes masquées, comme les jours hors de la tranche
@@ -1093,6 +1158,17 @@ function bornesMetrique(index) {
       if (v > max) max = v;
     });
   });
+  // Les projections doivent tenir dans le cadre : sans cela, une trajectoire
+  // qui va plus loin que l'historique connu serait tronquée sans prévenir.
+  if (projectionsActives) {
+    cyclesSelectionnes().forEach(n => {
+      calculerProjection(n, index).forEach(p => {
+        if (p[0] < vue.debut || p[0] > vue.fin) return;
+        if (p[1] < min) min = p[1];
+        if (p[1] > max) max = p[1];
+      });
+    });
+  }
   if (min === Infinity) return [0, 1];  // rien de visible
   return [min, max];
 }
@@ -1296,6 +1372,25 @@ function dessinerGraphique() {
     parties.push(`<path class="ligne-historique" style="stroke: ${couleurCycle(n)}" d="${d}"></path>`);
   });
   parties.push(`<path class="ligne-actuelle" d="${cheminDepuisPoints(cycleActuel.points, indexMetrique(metriqueChoisie), echelleY)}"></path>`);
+
+  // Projections par analogie, en pointillés de la couleur du cycle décalqué,
+  // partant du point d'aujourd'hui : voir calculerProjection() pour le calcul
+  // et le sens de cette exception à la règle "aucune prédiction".
+  if (projectionsActives) {
+    const indexActif = indexMetrique(metriqueChoisie);
+    const valeurAujourdhui = valeurAuJour(cycleActuel.points, jourActuel, indexActif);
+    if (valeurAujourdhui !== null) {
+      selection.forEach(n => {
+        const projection = calculerProjection(n, indexActif);
+        if (!projection.length) return;
+        let d = `M ${echelleX(jourActuel).toFixed(1)} ${echelleY(valeurAujourdhui).toFixed(1)} `;
+        projection.forEach(p => {
+          d += `L ${echelleX(p[0]).toFixed(1)} ${echelleY(p[1]).toFixed(1)} `;
+        });
+        parties.push(`<path class="ligne-projection" style="stroke: ${couleurCycle(n)}" d="${d.trim()}"></path>`);
+      });
+    }
+  }
 
   // Losange au creux de chaque cycle affiché. Le marqueur se place sur la
   // courbe de la métrique en cours d'affichage : il indique donc où en était
@@ -1530,13 +1625,22 @@ function dessinerLegende() {
   cyclesSelectionnes().forEach(n => {
     morceaux.push(`<span><i class="puce" style="background: ${couleurCycle(n)}"></i> ${ACTIF.cycles[n].label}</span>`);
   });
-  morceaux.push(`<span><svg width="12" height="12" viewBox="0 0 12 12" style="flex:none"><path d="M6 1 L11 6 L6 11 L1 6 Z" fill="var(--doux)"></path></svg> Creux du cycle (drawdown le plus profond)</span>`);
-  if (cyclesSelectionnes().length >= 2) {
-    morceaux.push(`<span><i class="puce" style="background: var(--jour); opacity:.35; height: 10px"></i> Jours où les cycles précédents ont touché leur creux</span>`);
+  // La notion de creux n'existe que pour les actifs qui portent un drawdown :
+  // sans cette condition, cette entrée s'affichait aussi pour "marche", où
+  // aucun losange ni aucune bande n'est jamais tracé (même défaut de garde
+  // que celui corrigé dans dessinerGraphique — voir CLAUDE.md).
+  if (actifPorte("drawdown_pct")) {
+    morceaux.push(`<span><svg width="12" height="12" viewBox="0 0 12 12" style="flex:none"><path d="M6 1 L11 6 L6 11 L1 6 Z" fill="var(--doux)"></path></svg> Creux du cycle (drawdown le plus profond)</span>`);
+    if (cyclesSelectionnes().length >= 2) {
+      morceaux.push(`<span><i class="puce" style="background: var(--jour); opacity:.35; height: 10px"></i> Jours où les cycles précédents ont touché leur creux</span>`);
+    }
   }
   if (cyclesSelectionnes().length >= 2) {
     morceaux.push(`<span><i class="puce" style="background: var(--bande); opacity:.9"></i> Médiane des cycles affichés (pointillés)</span>`);
     morceaux.push(`<span><i class="puce" style="background: var(--bande); height: 10px"></i> Fourchette min–max des cycles affichés (lissée sur ±${FENETRE_LISSAGE} jours)</span>`);
+  }
+  if (projectionsActives && cyclesSelectionnes().length) {
+    morceaux.push(`<span><i class="puce" style="background: var(--doux); opacity:.7; height: 3px; border-bottom: 2px dashed var(--doux)"></i> Projection par analogie (pointillé, couleur du cycle décalqué)</span>`);
   }
   document.getElementById("legende").innerHTML = morceaux.join("");
 }
@@ -1727,6 +1831,44 @@ function majBoutonZoom() {
   document.getElementById("etendue-vue").textContent = vueEstInitiale()
     ? ""
     : `jours ${Math.round(vue.debut)} à ${Math.round(vue.fin)}`;
+}
+
+// --- Bouton des projections par analogie ------------------------------------
+const boutonProjection = document.getElementById("bouton-projection");
+boutonProjection.onclick = () => {
+  projectionsActives = !projectionsActives;
+  dessinerTout();
+};
+
+function dessinerNoteProjection() {
+  boutonProjection.setAttribute("aria-pressed", projectionsActives);
+  boutonProjection.textContent = projectionsActives
+    ? "Masquer les projections par analogie"
+    : "Afficher les projections par analogie";
+
+  const bloc = document.getElementById("note-projection");
+  if (!projectionsActives) { bloc.innerHTML = ""; return; }
+
+  const selection = cyclesSelectionnes();
+  if (selection.length === 0) {
+    bloc.innerHTML = `<p>Cochez au moins un cycle de référence pour voir sa trajectoire décalquée à partir d'aujourd'hui.</p>`;
+    return;
+  }
+
+  const noms = selection.map(n => ACTIF.cycles[n].label).join(", ");
+  bloc.innerHTML = `
+    <p><strong>Ce ne sont pas des prévisions.</strong> Chaque ligne pointillée
+    décalque un cycle passé (${noms}) : elle part de la valeur réelle
+    d'aujourd'hui, puis suit exactement la même évolution relative que ce
+    cycle a connue à partir du même jour — ni plus, ni moins.</p>
+    <p>Les trajectoires sont montrées séparément, une par cycle, et jamais
+    fusionnées en une seule réponse ni assorties d'une probabilité : avec
+    ${selection.length} cycle${selection.length > 1 ? "s" : ""} de référence
+    seulement, en attribuer une fabriquerait une précision que les données
+    n'ont pas. Ce cycle diffère par ailleurs structurellement des précédents
+    (flux ETF et institutionnels concentrés sur le BTC) : rien ne dit qu'il
+    suivra l'un de ces schémas plutôt qu'un autre, ou aucun.</p>
+  `;
 }
 
 // --- Lecture des valeurs au survol -----------------------------------------
@@ -2141,6 +2283,7 @@ function dessinerTout() {
   dessinerLecture();
   dessinerCreux();
   dessinerAvertissementSelection();
+  dessinerNoteProjection();
   majBoutonZoom();
 }
 

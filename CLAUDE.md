@@ -215,7 +215,38 @@ antérieur à ce jour, découvert seulement maintenant) : le tracé de la zone
 renvoie -1, et `p[-1]` en JavaScript vaut `undefined` plutôt que de lever une
 erreur — le bug passait donc inaperçu et affichait une bande fantôme au jour 0.
 Sert de rappel : une fonction qui suppose une métrique présente doit soit la
-vérifier, soit être appelée seulement depuis un code déjà protégé.
+vérifier, soit être appelée seulement depuis un code déjà protégé. Le même
+défaut existait aussi dans la légende (`dessinerLegende()`, entrée « Creux du
+cycle » affichée sans condition) et a été corrigé au même endroit.
+
+**Exception décidée le 2026-08-11 : projections par analogie.** L'utilisateur
+a explicitement demandé d'aller au-delà du principe « aucune prédiction »,
+en sachant que cela sort du cahier des charges initial. Plutôt qu'une
+prédiction ponctuelle, la page décalque chaque cycle de référence sélectionné
+pour qu'il parte de la valeur réelle d'aujourd'hui, puis suive point par
+point sa propre évolution relative passée — `calculerProjection()` dans
+docs/index.html. Conditions posées, à préserver dans toute évolution :
+
+- **Désactivé par défaut**, réinitialisé à chaque changement d'actif
+  (`projectionsActives = false` dans `chargerActif()`) : ne jamais faire
+  apparaître ce mode sans que l'utilisateur l'ait choisi dans le contexte
+  affiché.
+- **Une trajectoire par cycle, jamais fusionnées.** Avec 2 ou 3 cycles de
+  référence, leur assigner une probabilité ou les moyenner fabriquerait une
+  précision que les données n'ont pas. Chaque ligne reste identifiable par
+  la couleur du cycle qu'elle décalque, en pointillé pour ne jamais se
+  confondre avec une courbe mesurée.
+- **Texte explicatif obligatoire quand le mode est actif** (`note-projection`
+  dans dessinerNoteProjection()) : nomme la méthode, rappelle qu'aucune
+  probabilité n'est assignée, et redit la réserve institutionnelle (flux ETF,
+  déjà évoquée pour BTC Dominance) — ce cycle peut ne suivre aucun des
+  schémas passés.
+- Le pied de page nomme cette fonctionnalité aux côtés du repère théorique
+  comme exception documentée à la règle « aucune prédiction », jamais en
+  silence.
+
+Ne pas transformer ce mode en une fourchette unique, un score de probabilité,
+ou une date/prix cible affirmé sans ces mêmes garde-fous.
 
 **Phase 3 — Portefeuille**
 Saisie manuelle des positions dans un CSV du dépôt (gratuit, cinq minutes par
