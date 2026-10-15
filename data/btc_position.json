@@ -1,10 +1,10 @@
 {
   "asset": "btc",
   "asset_name": "Bitcoin",
-  "generated_date": "2026-10-13",
+  "generated_date": "2026-10-14",
   "current_cycle": {
     "halving_number": 4,
-    "days_since_halving": 906
+    "days_since_halving": 907
   },
   "reference_cycles_used": [
     1,
@@ -15,45 +15,45 @@
   "caveat": "Comparaison basée sur seulement 3 cycles historiques complets : chaque écart peut refléter le hasard autant qu'un signal réel. Le cycle actuel diffère structurellement des précédents (ETF spot, flux institutionnels, contexte de taux) : ne pas traiter l'historique comme un gabarit fiable. Ceci n'est pas une prédiction.",
   "metrics": {
     "drawdown_pct": {
-      "current_value": -33.3933,
+      "current_value": -34.7095,
       "historical_values_same_day": {
-        "cycle_1": -78.9447,
-        "cycle_2": -80.6109,
-        "cycle_3": -70.0954
+        "cycle_1": -78.7906,
+        "cycle_2": -80.1523,
+        "cycle_3": -68.6753
       },
-      "historical_min": -80.6109,
-      "historical_median": -78.9447,
-      "historical_max": -70.0954,
+      "historical_min": -80.1523,
+      "historical_median": -78.7906,
+      "historical_max": -68.6753,
       "rank_percentile_exact_day": 100.0,
       "rank_percentile_windowed": 100.0,
       "windowed_sample_size": 87,
       "window_days": 14
     },
     "mvrv": {
-      "current_value": 1.5438,
+      "current_value": 1.5136,
       "historical_values_same_day": {
-        "cycle_1": 0.8222,
-        "cycle_2": 0.8391,
-        "cycle_3": 0.957
+        "cycle_1": 0.8283,
+        "cycle_2": 0.8591,
+        "cycle_3": 1.001
       },
-      "historical_min": 0.8222,
-      "historical_median": 0.8391,
-      "historical_max": 0.957,
+      "historical_min": 0.8283,
+      "historical_median": 0.8591,
+      "historical_max": 1.001,
       "rank_percentile_exact_day": 100.0,
       "rank_percentile_windowed": 100.0,
       "windowed_sample_size": 87,
       "window_days": 14
     },
     "mayer_multiple": {
-      "current_value": 1.1528,
+      "current_value": 1.1288,
       "historical_values_same_day": {
-        "cycle_1": 0.8613,
-        "cycle_2": 0.6361,
-        "cycle_3": 0.832
+        "cycle_1": 0.8692,
+        "cycle_2": 0.6526,
+        "cycle_3": 0.8751
       },
-      "historical_min": 0.6361,
-      "historical_median": 0.832,
-      "historical_max": 0.8613,
+      "historical_min": 0.6526,
+      "historical_median": 0.8692,
+      "historical_max": 0.8751,
       "rank_percentile_exact_day": 100.0,
       "rank_percentile_windowed": 100.0,
       "windowed_sample_size": 87,
