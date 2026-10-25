@@ -1,10 +1,10 @@
 {
   "asset": "eth",
   "asset_name": "Ethereum",
-  "generated_date": "2026-10-23",
+  "generated_date": "2026-10-24",
   "current_cycle": {
     "halving_number": 4,
-    "days_since_halving": 916
+    "days_since_halving": 917
   },
   "reference_cycles_used": [
     2,
@@ -16,42 +16,42 @@
   "caveat": "Comparaison basée sur seulement 2 cycles historiques complets : chaque écart peut refléter le hasard autant qu'un signal réel. Le cycle actuel diffère structurellement des précédents (ETF spot, flux institutionnels, contexte de taux) : ne pas traiter l'historique comme un gabarit fiable. Ceci n'est pas une prédiction. Le cycle 1 est écarté de la comparaison : l'historique de Ethereum commence le 2015-08-08 et ne les couvre pas entièrement. Ethereum n'a pas de halving : son cycle est ici aligné sur les halvings du Bitcoin, en supposant que celui-ci pilote le reste du marché. C'est une hypothèse de lecture, pas un fait.",
   "metrics": {
     "drawdown_pct": {
-      "current_value": -50.7719,
+      "current_value": -51.3158,
       "historical_values_same_day": {
-        "cycle_2": -90.9451,
-        "cycle_3": -74.6392
+        "cycle_2": -90.9916,
+        "cycle_3": -74.2115
       },
-      "historical_min": -90.9451,
-      "historical_median": -82.7921,
-      "historical_max": -74.6392,
+      "historical_min": -90.9916,
+      "historical_median": -82.6016,
+      "historical_max": -74.2115,
       "rank_percentile_exact_day": 100.0,
       "rank_percentile_windowed": 100.0,
       "windowed_sample_size": 58,
       "window_days": 14
     },
     "mvrv": {
-      "current_value": 1.0536,
+      "current_value": 1.044,
       "historical_values_same_day": {
-        "cycle_2": 0.4563,
-        "cycle_3": 0.788
+        "cycle_2": 0.4544,
+        "cycle_3": 0.8017
       },
-      "historical_min": 0.4563,
-      "historical_median": 0.6221,
-      "historical_max": 0.788,
+      "historical_min": 0.4544,
+      "historical_median": 0.628,
+      "historical_max": 0.8017,
       "rank_percentile_exact_day": 100.0,
       "rank_percentile_windowed": 100.0,
       "windowed_sample_size": 58,
       "window_days": 14
     },
     "mayer_multiple": {
-      "current_value": 1.1031,
+      "current_value": 1.0907,
       "historical_values_same_day": {
-        "cycle_2": 0.5038,
-        "cycle_3": 0.7673
+        "cycle_2": 0.5043,
+        "cycle_3": 0.7844
       },
-      "historical_min": 0.5038,
-      "historical_median": 0.6356,
-      "historical_max": 0.7673,
+      "historical_min": 0.5043,
+      "historical_median": 0.6443,
+      "historical_max": 0.7844,
       "rank_percentile_exact_day": 100.0,
       "rank_percentile_windowed": 100.0,
       "windowed_sample_size": 58,
