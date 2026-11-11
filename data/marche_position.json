@@ -1,10 +1,10 @@
 {
   "asset": "marche",
   "asset_name": "BTC Dominance",
-  "generated_date": "2026-11-09",
+  "generated_date": "2026-11-10",
   "current_cycle": {
     "halving_number": 4,
-    "days_since_halving": 933
+    "days_since_halving": 934
   },
   "reference_cycles_used": [
     2,
@@ -14,56 +14,56 @@
   "caveat": "Comparaison basée sur seulement 2 cycles historiques complets : chaque écart peut refléter le hasard autant qu'un signal réel. Le cycle actuel diffère structurellement des précédents (ETF spot, flux institutionnels, contexte de taux) : ne pas traiter l'historique comme un gabarit fiable. Ceci n'est pas une prédiction. Ces indicateurs reposent sur un panier figé de 11 actifs suivis sans interruption depuis 2016, hors stablecoins et jetons enveloppés. Ce panier ne représente pas tout le marché : il est composé des survivants de 2016, et les alts qui ont dominé ensuite (BNB, SOL, ADA...) n'y figurent pas. La part du Bitcoin y dérive donc à la hausse pour une raison de composition, pas de marché. Comparer la FORME à l'intérieur d'un cycle a du sens ; comparer les NIVEAUX d'un cycle à l'autre n'en a pas, d'où l'affichage en base 100 au halving.",
   "metrics": {
     "dominance_base100": {
-      "current_value": 107.925,
+      "current_value": 108.34,
       "historical_values_same_day": {
-        "cycle_2": 63.815,
-        "cycle_3": 78.145
+        "cycle_2": 64.231,
+        "cycle_3": 78.46
       },
-      "historical_min": 63.815,
-      "historical_median": 70.98,
-      "historical_max": 78.145,
+      "historical_min": 64.231,
+      "historical_median": 71.3455,
+      "historical_max": 78.46,
       "rank_percentile_exact_day": 100.0,
       "rank_percentile_windowed": 100.0,
       "windowed_sample_size": 58,
       "window_days": 14
     },
     "dominance_btc": {
-      "current_value": 78.5778,
+      "current_value": 78.88,
       "historical_values_same_day": {
-        "cycle_2": 52.9583,
-        "cycle_3": 58.839
+        "cycle_2": 53.3036,
+        "cycle_3": 59.0763
       },
-      "historical_min": 52.9583,
-      "historical_median": 55.8987,
-      "historical_max": 58.839,
+      "historical_min": 53.3036,
+      "historical_median": 56.19,
+      "historical_max": 59.0763,
       "rank_percentile_exact_day": 100.0,
       "rank_percentile_windowed": 100.0,
       "windowed_sample_size": 58,
       "window_days": 14
     },
     "ratio_base100": {
-      "current_value": 58.305,
+      "current_value": 57.213,
       "historical_values_same_day": {
-        "cycle_2": 183.098,
-        "cycle_3": 349.6
+        "cycle_2": 182.69,
+        "cycle_3": 347.954
       },
-      "historical_min": 183.098,
-      "historical_median": 266.349,
-      "historical_max": 349.6,
+      "historical_min": 182.69,
+      "historical_median": 265.322,
+      "historical_max": 347.954,
       "rank_percentile_exact_day": 0.0,
       "rank_percentile_windowed": 0.0,
       "windowed_sample_size": 58,
       "window_days": 14
     },
     "ratio_eth_btc": {
-      "current_value": 0.0283,
+      "current_value": 0.0278,
       "historical_values_same_day": {
-        "cycle_2": 0.0308,
-        "cycle_3": 0.0756
+        "cycle_2": 0.0307,
+        "cycle_3": 0.0752
       },
-      "historical_min": 0.0308,
-      "historical_median": 0.0532,
-      "historical_max": 0.0756,
+      "historical_min": 0.0307,
+      "historical_median": 0.053,
+      "historical_max": 0.0752,
       "rank_percentile_exact_day": 0.0,
       "rank_percentile_windowed": 0.0,
       "windowed_sample_size": 58,
